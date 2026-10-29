@@ -1,10 +1,12 @@
-import { createStore } from "./store.js";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js";
+// Versjon (v=9) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Øk tallet i index.html, app.js og store.js ved hver endring.
+import { createStore } from "./store.js?v=9";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=9";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-} from "./rules.js";
+} from "./rules.js?v=9";
 
 const USER_KEY = "grupperom-current-user";
 const MANAGE = "__manage__"; // spesialvalg i "Du er"-menyen
