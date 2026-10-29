@@ -2,7 +2,8 @@
 <html lang="no">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2456c8" />
   <title>Grupperom-booking</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -30,12 +31,15 @@
     <aside class="side">
       <section class="card next">
         <h2>Neste til å booke</h2>
-        <div id="next-person" class="next-name">–</div>
-        <p id="next-hint" class="muted"></p>
-        <ol id="queue" class="queue"></ol>
+        <ol id="next-three" class="next-three"></ol>
+        <p id="next-hint" class="muted small"></p>
+        <details id="rest" class="rest" hidden>
+          <summary>Resten av køen</summary>
+          <ol id="queue" class="queue" start="4"></ol>
+        </details>
       </section>
 
-      <section class="card">
+      <section class="card book-card" id="book-card">
         <h2>Ny booking</h2>
         <form id="booking-form" novalidate>
           <label>Dato
@@ -57,7 +61,7 @@
         </form>
       </section>
 
-      <section class="card">
+      <section class="card mine-card">
         <h2>Mine bookinger <span id="my-count" class="count"></span></h2>
         <ul id="my-bookings" class="mine"></ul>
       </section>

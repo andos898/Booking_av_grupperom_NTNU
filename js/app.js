@@ -69,20 +69,23 @@ function renderQueue() {
   const queue = bookingQueue(state.people, state.bookings, now);
   const full = state.people.filter((p) => !queue.some((q) => q.person.id === p.id));
 
-  if (!state.people.length) {
-    $("next-person").textContent = "–";
-    $("next-hint").textContent = "Lag en bruker for å komme i gang.";
-  } else if (!queue.length) {
-    $("next-person").textContent = "Alle er fulle";
-    $("next-hint").textContent = `Alle har ${MAX_ACTIVE_BOOKINGS} aktive bookinger.`;
-  } else {
-    const first = queue[0];
-    $("next-person").textContent = first.person.id === currentUserId ? `${first.person.name} (deg!)` : first.person.name;
-    $("next-hint").textContent = `${first.active} av ${MAX_ACTIVE_BOOKINGS} aktive bookinger`;
-  }
+  const top = queue.slice(0, 3);
+  $("next-three").innerHTML = top.map((q, i) => {
+    const me = q.person.id === currentUserId;
+    return `<li class="${me ? "me" : ""}">
+      <span class="rank">${i + 1}</span>
+      <span class="name">${esc(q.person.name)}${me ? ` <span class="you">deg</span>` : ""}</span>
+      <span class="muted small">${q.active}/${MAX_ACTIVE_BOOKINGS}</span></li>`;
+  }).join("");
 
+  if (!state.people.length) $("next-hint").textContent = "Lag en bruker for å komme i gang.";
+  else if (!queue.length) $("next-hint").textContent = `Alle har ${MAX_ACTIVE_BOOKINGS} aktive bookinger.`;
+  else $("next-hint").textContent = "Tallet viser aktive bookinger.";
+
+  const rest = queue.slice(3);
+  $("rest").hidden = !rest.length && !full.length;
   $("queue").innerHTML =
-    queue.map((q) => `<li class="${q.person.id === currentUserId ? "me" : ""}">
+    rest.map((q) => `<li class="${q.person.id === currentUserId ? "me" : ""}">
         <span class="name">${esc(q.person.name)}</span>
         <span class="muted small">${q.active}/${MAX_ACTIVE_BOOKINGS}</span></li>`).join("") +
     full.map((p) => `<li class="full ${p.id === currentUserId ? "me" : ""}">
@@ -138,7 +141,7 @@ function renderCalendar() {
           const mine = b.personId === currentUserId;
           const canDelete = mine && isActive(b, now);
           return `<div class="chip ${mine ? "mine-chip" : ""}" style="--h:${hue(b.personId)}" title="${esc(personName(b.personId))} – ${esc(b.room)}">
-            <span class="txt"><b>${esc(personName(b.personId))}</b> · ${esc(b.room)}</span>
+            <span class="txt"><b>${esc(personName(b.personId))}</b><span class="sep"> · </span><span class="room">${esc(b.room)}</span></span>
             ${canDelete ? `<button class="icon-btn" data-delete="${esc(b.id)}" aria-label="Slett booking">✕</button>` : ""}</div>`;
         }).join("")}
       </div>`;
