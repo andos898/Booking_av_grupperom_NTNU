@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=10" />
+  <link rel="stylesheet" href="css/style.css?v=11" />
 </head>
 <body>
   <header class="topbar">
@@ -23,7 +23,6 @@
       <label for="current-user">Du er</label>
       <select id="current-user"></select>
       <button id="new-user-btn" class="btn ghost" type="button">+ Ny bruker</button>
-      <button id="manage-btn" class="btn ghost" type="button">⚙ Brukere</button>
       <a class="btn link-btn booking-link" target="_blank" rel="noopener">Book rom hos NTNU ↗</a>
       <span id="mode-badge" class="badge"></span>
     </div>
@@ -67,6 +66,12 @@
         <h2>Mine bookinger <span id="my-count" class="count"></span></h2>
         <ul id="my-bookings" class="mine"></ul>
       </section>
+
+      <section class="card people-card">
+        <h2>Brukere <span id="people-count" class="count"></span></h2>
+        <p class="muted small">Fjerner du en bruker, slettes også bookingene deres.</p>
+        <ul id="people-list" class="mine"></ul>
+      </section>
     </aside>
 
     <section class="card calendar-card">
@@ -95,17 +100,8 @@
     </form>
   </dialog>
 
-  <dialog id="people-dialog">
-    <h2>Brukere <span id="people-count" class="count"></span></h2>
-    <p class="muted small">Fjerner du en bruker, slettes også bookingene deres.</p>
-    <ul id="people-list" class="mine"></ul>
-    <div class="dialog-actions">
-      <button class="btn ghost" type="button" id="people-close" autofocus>Lukk</button>
-    </div>
-  </dialog>
-
   <div id="toast" class="toast" role="status"></div>
 
-  <script type="module" src="js/app.js?v=10"></script>
+  <script type="module" src="js/app.js?v=11"></script>
 </body>
 </html>

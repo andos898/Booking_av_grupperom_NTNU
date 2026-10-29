@@ -1,15 +1,14 @@
-// Versjon (v=10) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=11) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=10";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=10";
+import { createStore } from "./store.js?v=11";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=11";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-} from "./rules.js?v=10";
+} from "./rules.js?v=11";
 
 const USER_KEY = "grupperom-current-user";
-const MANAGE = "__manage__"; // spesialvalg i "Du er"-menyen
 const $ = (id) => document.getElementById(id);
 
 let store;
@@ -77,8 +76,7 @@ function renderUserPicker() {
   const people = [...state.people].sort((a, b) => a.name.localeCompare(b.name, "nb"));
   sel.innerHTML =
     `<option value="">— Velg deg selv —</option>` +
-    people.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("") +
-    (people.length ? `<option disabled>──────────</option><option value="${MANAGE}">⚙ Administrer brukere…</option>` : "");
+    people.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
   sel.value = currentUserId;
 }
 
@@ -227,11 +225,6 @@ function setupForm() {
 function setupUsers() {
   const dialog = $("user-dialog");
   $("current-user").addEventListener("change", (e) => {
-    if (e.target.value === MANAGE) {
-      e.target.value = currentUserId;
-      $("people-dialog").showModal();
-      return;
-    }
     writeUser(e.target.value);
     $("form-error").textContent = "";
     render();
@@ -242,8 +235,6 @@ function setupUsers() {
     dialog.showModal();
   });
   $("user-cancel").addEventListener("click", () => dialog.close());
-  $("people-close").addEventListener("click", () => $("people-dialog").close());
-  $("manage-btn").addEventListener("click", () => $("people-dialog").showModal());
   $("people-list").addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-delete-person]");
     if (!btn) return;
