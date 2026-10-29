@@ -191,7 +191,7 @@ label.radio:has(input:checked) { color: var(--accent); font-weight: 600; }
 
 .chip {
   --h: 220;
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: flex-start; gap: 4px;
   font-size: 0.74rem; line-height: 1.25;
   padding: 3px 6px; border-radius: 6px;
   background: hsl(var(--h) 70% 94%); color: hsl(var(--h) 55% 25%);
@@ -201,8 +201,11 @@ label.radio:has(input:checked) { color: var(--accent); font-weight: 600; }
 @media (prefers-color-scheme: dark) {
   .chip { background: hsl(var(--h) 35% 20%); color: hsl(var(--h) 70% 85%); }
 }
-.chip .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.chip .txt b { font-weight: 600; }
+/* Navn og rom på hver sin linje, med linjebryting – ellers kuttes rommet i smale celler */
+.chip .txt { flex: 1; min-width: 0; white-space: normal; overflow-wrap: break-word; hyphens: auto; }
+.chip .txt b { font-weight: 600; display: block; }
+.chip .sep { display: none; }
+.chip .room { display: block; }
 .chip.mine-chip { outline: 1.5px solid hsl(var(--h) 60% 50%); }
 .chip .icon-btn { font-size: 0.8rem; padding: 0 3px; color: inherit; }
 
@@ -217,11 +220,6 @@ label.radio:has(input:checked) { color: var(--accent); font-weight: 600; }
   .day-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .day-slots .slot + .slot { border-left: 1px dashed var(--line); }
   .slot { min-height: 56px; padding: 6px; }
-  .chip { align-items: flex-start; }
-  .chip .txt { white-space: normal; overflow-wrap: break-word; hyphens: auto; min-width: 0; }
-  .chip .sep { display: none; }
-  .chip .room { display: block; }
-  .chip .txt b { display: block; }
 }
 
 /* Telefon */
