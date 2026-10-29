@@ -7,6 +7,7 @@ import {
 } from "./rules.js";
 
 const USER_KEY = "grupperom-current-user";
+const MANAGE = "__manage__"; // spesialvalg i "Du er"-menyen
 const $ = (id) => document.getElementById(id);
 
 let store;
@@ -74,7 +75,8 @@ function renderUserPicker() {
   const people = [...state.people].sort((a, b) => a.name.localeCompare(b.name, "nb"));
   sel.innerHTML =
     `<option value="">— Velg deg selv —</option>` +
-    people.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+    people.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("") +
+    (people.length ? `<option disabled>──────────</option><option value="${MANAGE}">⚙ Administrer brukere…</option>` : "");
   sel.value = currentUserId;
 }
 
@@ -223,6 +225,11 @@ function setupForm() {
 function setupUsers() {
   const dialog = $("user-dialog");
   $("current-user").addEventListener("change", (e) => {
+    if (e.target.value === MANAGE) {
+      e.target.value = currentUserId;
+      $("people-dialog").showModal();
+      return;
+    }
     writeUser(e.target.value);
     $("form-error").textContent = "";
     render();
@@ -233,13 +240,7 @@ function setupUsers() {
     dialog.showModal();
   });
   $("user-cancel").addEventListener("click", () => dialog.close());
-  $("manage-users").addEventListener("click", () => {
-    const card = $("people-card");
-    card.querySelector("details").open = true;
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.add("flash");
-    setTimeout(() => card.classList.remove("flash"), 1200);
-  });
+  $("people-close").addEventListener("click", () => $("people-dialog").close());
   $("people-list").addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-delete-person]");
     if (!btn) return;

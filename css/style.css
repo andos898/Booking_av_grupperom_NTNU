@@ -277,19 +277,8 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
 .btn.link-btn { background: var(--accent); color: #fff; text-decoration: none; display: inline-flex; align-items: center; }
 .btn.link-btn:hover { filter: brightness(1.08); }
 
-/* Brukere */
-.people-card summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
-.people-card summary::-webkit-details-marker { display: none; }
-.people-card summary::after { content: "▸"; color: var(--muted); transition: transform 0.15s; }
-.people-card details[open] summary::after { transform: rotate(90deg); }
-.people-card summary h2 { margin: 0; }
-.people-card details[open] summary { margin-bottom: 8px; }
-.people-card p { margin: 0 0 6px; }
-@media (max-width: 900px) { .people-card { order: 5; } }
 @media (max-width: 600px) { .who .link-btn { width: 100%; justify-content: center; } }
-.text-btn {
-  font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--accent);
-  background: none; border: 0; padding: 8px 0 0; cursor: pointer; display: block;
-}
-.text-btn:hover { text-decoration: underline; }
-.people-card.flash { box-shadow: 0 0 0 3px var(--accent); transition: box-shadow 0.3s; }
+
+#people-dialog h2 { margin-bottom: 4px; }
+#people-dialog p { margin: 0 0 8px; }
+#people-dialog .mine { max-height: 60vh; overflow-y: auto; margin-bottom: 12px; }
