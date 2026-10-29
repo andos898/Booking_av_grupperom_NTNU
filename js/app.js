@@ -1,13 +1,13 @@
-// Versjon (v=17) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=18) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=17";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=17";
+import { createStore } from "./store.js?v=18";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=18";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods, bookableFrom,
-} from "./rules.js?v=17";
+} from "./rules.js?v=18";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -144,12 +144,12 @@ function suggestionHTML(x) {
 }
 
 // Fyll skjemaet med forslaget til innlogget bruker, ellers neste ledige økt som kan bookes nå,
-// så lenge brukeren ikke har valgt selv
+// ellers neste ledige økt selv om den ikke kan bookes ennå – så lenge brukeren ikke har valgt selv
 function prefillForm() {
   if (formTouched) return;
   const mine = queueWithSuggestions().find((q) => q.person.id === currentUserId)?.suggestion;
   const next = suggestedSlots(state.bookings, 1, new Date(), state.blocked)[0];
-  const pick = [mine, next].find((x) => x && !bookableFrom(x.date));
+  const pick = [mine, next].find((x) => x && !bookableFrom(x.date)) || next;
   if (!pick) return;
   $("f-date").value = pick.date;
   document.querySelector(`input[name="slot"][value="${pick.slot}"]`).checked = true;
@@ -161,8 +161,11 @@ function renderFormHint() {
   const next = suggestedSlots(state.bookings, 1, new Date(), state.blocked)[0];
   const useNext = next && !bookableFrom(next.date) ? ` <button type="button" class="link" data-suggest="${next.date}|${next.slot}">Book heller ${esc(slotText(next))}</button>` : "";
   const block = date && blockedOn(date, state.blocked);
+  const opens = date && bookableFrom(date);
   let msg = "";
-  if (block) {
+  if (opens) {
+    msg = `Denne datoen er mer enn ${MAX_DAYS_AHEAD} dager frem og kan bookes fra ${esc(dayFmt.format(parseISODate(opens)))}.`;
+  } else if (block) {
     msg = `Denne dagen er sperret${block.reason ? ` (${esc(block.reason)})` : ""}.${useNext}`;
   } else if (date && isDayCovered(date, state.bookings)) {
     msg = `08–16 er allerede dekket denne dagen – 16–20 trengs ikke.${useNext}`;
