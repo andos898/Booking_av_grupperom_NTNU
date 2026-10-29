@@ -41,7 +41,7 @@ GitHub Pages kan bare vise statiske filer. Uten noe mer oppsett lagres data derf
    rules_version = '2';
    service cloud.firestore {
      match /databases/{db}/documents {
-       match /people/{id}   { allow read, create: if true; }
+       match /people/{id}   { allow read, create, delete: if true; }
        match /bookings/{id} { allow read, create, delete: if true; }
      }
    }

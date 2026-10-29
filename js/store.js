@@ -1,5 +1,5 @@
 // Lagring: Firestore når FIREBASE_CONFIG er satt, ellers localStorage.
-// Begge gir samme grensesnitt: subscribe(cb), addPerson(name), addBooking(b), deleteBooking(id).
+// Begge gir samme grensesnitt: subscribe(cb), addPerson(name), addBooking(b), deleteBooking(id), deletePerson(id).
 import { FIREBASE_CONFIG } from "./config.js";
 import { validateBooking, normalizeRoom } from "./rules.js";
 
@@ -54,6 +54,13 @@ function localStore() {
     },
     async deleteBooking(id) {
       state = { ...state, bookings: state.bookings.filter((b) => b.id !== id) };
+      save();
+    },
+    async deletePerson(id) {
+      state = {
+        people: state.people.filter((p) => p.id !== id),
+        bookings: state.bookings.filter((b) => b.personId !== id),
+      };
       save();
     },
   };
@@ -114,6 +121,14 @@ async function firestoreStore(config) {
     },
     async deleteBooking(id) {
       await fs.deleteDoc(fs.doc(db, "bookings", id));
+    },
+    async deletePerson(id) {
+      // Sletter brukeren og alle bookingene deres i én operasjon
+      const theirs = await fs.getDocs(fs.query(bookingsCol, fs.where("personId", "==", id)));
+      const batch = fs.writeBatch(db);
+      theirs.forEach((d) => batch.delete(d.ref));
+      batch.delete(fs.doc(db, "people", id));
+      await batch.commit();
     },
   };
 }

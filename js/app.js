@@ -1,5 +1,5 @@
 import { createStore } from "./store.js";
-import { ROOM_SUGGESTIONS } from "./config.js";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
@@ -53,6 +53,20 @@ function render() {
   renderMine();
   renderCalendar();
   renderRooms();
+  renderPeople();
+}
+
+function renderPeople() {
+  const people = [...state.people].sort((a, b) => a.name.localeCompare(b.name, "nb"));
+  $("people-count").textContent = people.length ? `(${people.length})` : "";
+  $("people-list").innerHTML = people.length
+    ? people.map((p) => {
+        const n = activeBookingsFor(p.id, state.bookings).length;
+        return `<li><span class="when"><b>${esc(p.name)}${p.id === currentUserId ? ` <span class="you">deg</span>` : ""}</b>
+          <span class="muted">${n} ${n === 1 ? "aktiv booking" : "aktive bookinger"}</span></span>
+          <button class="icon-btn" data-delete-person="${esc(p.id)}" title="Fjern bruker" aria-label="Fjern ${esc(p.name)}">✕</button></li>`;
+      }).join("")
+    : `<li class="muted">Ingen brukere ennå.</li>`;
 }
 
 function renderUserPicker() {
@@ -219,6 +233,22 @@ function setupUsers() {
     dialog.showModal();
   });
   $("user-cancel").addEventListener("click", () => dialog.close());
+  $("people-list").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-delete-person]");
+    if (!btn) return;
+    const id = btn.dataset.deletePerson;
+    const n = state.bookings.filter((b) => b.personId === id).length;
+    const msg = `Fjerne ${personName(id)}?` + (n ? ` ${n} booking${n > 1 ? "er" : ""} slettes også.` : "");
+    if (!confirm(msg)) return;
+    try {
+      await store.deletePerson(id);
+      if (id === currentUserId) writeUser("");
+      render();
+      toast("Bruker fjernet");
+    } catch (ex) {
+      alert("Kunne ikke fjerne brukeren: " + ex.message);
+    }
+  });
   $("user-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = $("u-name").value.trim().replace(/\s+/g, " ");
@@ -235,6 +265,7 @@ function setupUsers() {
 }
 
 async function main() {
+  document.querySelectorAll(".booking-link").forEach((a) => (a.href = BOOKING_URL));
   setupForm();
   setupUsers();
   store = await createStore();

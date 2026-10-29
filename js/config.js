@@ -19,5 +19,8 @@ export const FIREBASE_CONFIG = {
 };
 */
 
+// Der rommene faktisk bookes
+export const BOOKING_URL = "https://tp.educloud.no/ntnu/app/rombestilling/";
+
 // Forslag til rom i bookingskjemaet (man kan også skrive inn andre)
 export const ROOM_SUGGESTIONS = [];
