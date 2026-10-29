@@ -233,6 +233,13 @@ function setupUsers() {
     dialog.showModal();
   });
   $("user-cancel").addEventListener("click", () => dialog.close());
+  $("manage-users").addEventListener("click", () => {
+    const card = $("people-card");
+    card.querySelector("details").open = true;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("flash");
+    setTimeout(() => card.classList.remove("flash"), 1200);
+  });
   $("people-list").addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-delete-person]");
     if (!btn) return;

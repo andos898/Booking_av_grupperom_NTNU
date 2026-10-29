@@ -34,6 +34,7 @@
         <h2>Neste til å booke</h2>
         <ol id="next-three" class="next-three"></ol>
         <p id="next-hint" class="muted small"></p>
+        <button type="button" id="manage-users" class="text-btn">Administrer / fjern brukere</button>
         <details id="rest" class="rest" hidden>
           <summary>Resten av køen</summary>
           <ol id="queue" class="queue" start="4"></ol>
@@ -71,8 +72,8 @@
         <ul id="my-bookings" class="mine"></ul>
       </section>
 
-      <section class="card people-card">
-        <details>
+      <section class="card people-card" id="people-card">
+        <details open>
           <summary><h2>Brukere <span id="people-count" class="count"></span></h2></summary>
           <p class="muted small">Fjerner du en bruker, slettes også bookingene deres her.</p>
           <ul id="people-list" class="mine"></ul>
