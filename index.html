@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grupperom-booking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">▦</span>
+      <div>
+        <h1>Grupperom-booking</h1>
+        <p class="sub">Hvem booker neste gang?</p>
+      </div>
+    </div>
+    <div class="who">
+      <label for="current-user">Du er</label>
+      <select id="current-user"></select>
+      <button id="new-user-btn" class="btn ghost" type="button">+ Ny bruker</button>
+      <span id="mode-badge" class="badge"></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="side">
+      <section class="card next">
+        <h2>Neste til å booke</h2>
+        <div id="next-person" class="next-name">–</div>
+        <p id="next-hint" class="muted"></p>
+        <ol id="queue" class="queue"></ol>
+      </section>
+
+      <section class="card">
+        <h2>Ny booking</h2>
+        <form id="booking-form" novalidate>
+          <label>Dato
+            <input type="date" id="f-date" required />
+          </label>
+          <fieldset class="slots">
+            <legend>Økt (4 timer)</legend>
+            <label class="radio"><input type="radio" name="slot" value="am" checked /> 08:00–12:00</label>
+            <label class="radio"><input type="radio" name="slot" value="pm" /> 12:00–16:00</label>
+          </fieldset>
+          <label>Rom / sted
+            <input type="text" id="f-room" list="room-list" placeholder="f.eks. Gamle fysikk R5" autocomplete="off" required />
+            <datalist id="room-list"></datalist>
+          </label>
+          <p id="form-error" class="error" role="alert"></p>
+          <button class="btn primary" type="submit">Legg inn booking</button>
+          <p class="muted small">Maks 4 aktive bookinger per person, maks 14 dager frem.</p>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Mine bookinger <span id="my-count" class="count"></span></h2>
+        <ul id="my-bookings" class="mine"></ul>
+      </section>
+    </aside>
+
+    <section class="card calendar-card">
+      <div class="cal-head">
+        <h2>Kalender</h2>
+        <p class="muted small">Klikk på en ledig økt for å booke den.</p>
+      </div>
+      <div class="weekdays" aria-hidden="true">
+        <span>Man</span><span>Tir</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lør</span><span>Søn</span>
+      </div>
+      <div id="calendar" class="calendar"></div>
+    </section>
+  </main>
+
+  <dialog id="user-dialog">
+    <form method="dialog" id="user-form">
+      <h2>Ny bruker</h2>
+      <label>Navn
+        <input type="text" id="u-name" maxlength="40" required autocomplete="off" />
+      </label>
+      <p id="user-error" class="error" role="alert"></p>
+      <div class="dialog-actions">
+        <button class="btn ghost" value="cancel" type="button" id="user-cancel">Avbryt</button>
+        <button class="btn primary" value="ok" type="submit">Lag bruker</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
