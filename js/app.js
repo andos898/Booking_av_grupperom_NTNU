@@ -1,12 +1,12 @@
-// Versjon (v=11) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=12) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=11";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=11";
+import { createStore } from "./store.js?v=12";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=12";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-} from "./rules.js?v=11";
+} from "./rules.js?v=12";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);

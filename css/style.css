@@ -281,4 +281,13 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
 
 @media (max-width: 600px) { .who .link-btn { width: 100%; justify-content: center; } }
 
-.people-card p { margin: -6px 0 6px; }
+.people-card summary {
+  cursor: pointer; list-style: none; user-select: none;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.people-card summary::-webkit-details-marker { display: none; }
+.people-card summary::after { content: "▾"; color: var(--muted); font-size: 1.6rem; line-height: 1; transition: transform 0.15s; }
+.people-card details:not([open]) summary::after { transform: rotate(-90deg); }
+.people-card summary h2 { margin: 0; }
+.people-card details[open] summary { margin-bottom: 10px; }
+.people-card p { margin: 0 0 6px; }
