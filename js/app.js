@@ -1,12 +1,12 @@
-// Versjon (v=9) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=10) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=9";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=9";
+import { createStore } from "./store.js?v=10";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=10";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-} from "./rules.js?v=9";
+} from "./rules.js?v=10";
 
 const USER_KEY = "grupperom-current-user";
 const MANAGE = "__manage__"; // spesialvalg i "Du er"-menyen
@@ -243,6 +243,7 @@ function setupUsers() {
   });
   $("user-cancel").addEventListener("click", () => dialog.close());
   $("people-close").addEventListener("click", () => $("people-dialog").close());
+  $("manage-btn").addEventListener("click", () => $("people-dialog").showModal());
   $("people-list").addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-delete-person]");
     if (!btn) return;

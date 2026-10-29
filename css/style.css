@@ -236,7 +236,8 @@ label.radio:has(input:checked) { color: var(--accent); font-weight: 600; }
   .topbar { padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); }
   .brand .sub { display: none; }
   .who { width: 100%; }
-  .who select { flex: 1; }
+  .who select { flex: 1 1 100%; }
+  .who .btn.ghost { flex: 1; }
   .who label { display: none; }
   .layout { gap: 14px; padding: 14px 12px calc(32px + env(safe-area-inset-bottom)); }
   .card { padding: 16px 14px; }
