@@ -1,13 +1,13 @@
-// Versjon (v=15) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=16) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=15";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=15";
+import { createStore } from "./store.js?v=16";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=16";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-  suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods,
-} from "./rules.js?v=15";
+  suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods, bookableFrom,
+} from "./rules.js?v=16";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -137,14 +137,17 @@ function renderQueue() {
 }
 
 function suggestionHTML(x) {
-  return x ? `<span class="target">${esc(slotText(x))}</span>` : "";
+  if (!x) return "";
+  const opens = bookableFrom(x.date);
+  return `<span class="target">${esc(slotText(x))}</span>` +
+    (opens ? `<span class="opens">kan bookes fra ${esc(dayFmt.format(parseISODate(opens)))}</span>` : "");
 }
 
 // Fyll skjemaet med forslaget til innlogget bruker, så lenge de ikke har valgt selv
 function prefillForm() {
   if (formTouched) return;
   const mine = queueWithSuggestions().find((q) => q.person.id === currentUserId)?.suggestion;
-  if (!mine) return;
+  if (!mine || bookableFrom(mine.date)) return;
   $("f-date").value = mine.date;
   document.querySelector(`input[name="slot"][value="${mine.slot}"]`).checked = true;
 }
@@ -153,7 +156,7 @@ function renderFormHint() {
   const date = $("f-date").value;
   const slot = new FormData($("booking-form")).get("slot");
   const next = suggestedSlots(state.bookings, 1, new Date(), state.blocked)[0];
-  const useNext = next ? ` <button type="button" class="link" data-suggest="${next.date}|${next.slot}">Book heller ${esc(slotText(next))}</button>` : "";
+  const useNext = next && !bookableFrom(next.date) ? ` <button type="button" class="link" data-suggest="${next.date}|${next.slot}">Book heller ${esc(slotText(next))}</button>` : "";
   const block = date && blockedOn(date, state.blocked);
   let msg = "";
   if (block) {

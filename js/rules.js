@@ -119,6 +119,12 @@ export function blockedPeriods(blocked) {
   return out;
 }
 
+// Første dag en dato kan bookes (MAX_DAYS_AHEAD dager før), eller null hvis den kan bookes nå
+export function bookableFrom(date, now = new Date()) {
+  const from = addDays(parseISODate(date), -MAX_DAYS_AHEAD);
+  return from > addDays(now, 0) ? toISODate(from) : null;
+}
+
 // Økter gruppa trenger dekket hver dag. 16–20 er valgfri og foreslås ikke.
 export const CORE_SLOTS = ["am", "pm"];
 
@@ -133,11 +139,14 @@ export function isDayCovered(date, bookings) {
 
 /**
  * De neste udekkede kjerneøktene (hverdager 08–12 / 12–16) i rekkefølge,
- * innenfor booking-vinduet. Brukes til å foreslå hva neste i køen skal booke.
+ * Brukes til å foreslå hva neste i køen skal booke. Går forbi booking-vinduet
+ * (f.eks. etter sperrede dager), så alle i køen får en dato – se bookableFrom.
  */
+export const SUGGEST_DAYS_AHEAD = 60;
+
 export function suggestedSlots(bookings, count, now = new Date(), blocked = []) {
   const out = [];
-  for (let i = 0; i <= MAX_DAYS_AHEAD && out.length < count; i++) {
+  for (let i = 0; i <= SUGGEST_DAYS_AHEAD && out.length < count; i++) {
     const d = addDays(now, i);
     if (isWeekend(d)) continue;
     const date = toISODate(d);

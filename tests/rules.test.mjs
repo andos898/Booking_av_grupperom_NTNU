@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateBooking, bookingQueue, isActive, toISODate, addDays, suggestedSlots, isDayCovered, dateRange, blockedPeriods } from "../js/rules.js";
+import { validateBooking, bookingQueue, isActive, toISODate, addDays, suggestedSlots, isDayCovered, dateRange, blockedPeriods, bookableFrom } from "../js/rules.js";
 
 const now = new Date(2026, 9, 29, 9, 0); // tor 29. okt 2026 kl 09:00
 const day = (n) => toISODate(addDays(now, n));
@@ -93,7 +93,7 @@ test("sperrede dager kan ikke bookes og hoppes over i forslag", () => {
   const blocked = dateRange(day(0), day(13)).map((date) => ({ date, reason: "Fullbooket" }));
   assert.match(validateBooking(base, [], now, blocked), /sperret \(Fullbooket\)/);
   assert.equal(validateBooking({ ...base, date: day(14) }, [], now, blocked), null);
-  // 14 dager frem er fre 12. nov – første forslag
+  // 14 dager frem er tor 12. nov – første forslag
   assert.deepEqual(suggestedSlots([], 1, now, blocked), [{ date: day(14), slot: "am" }]);
 });
 
@@ -103,4 +103,14 @@ test("dateRange og blockedPeriods", () => {
     { date: "2026-11-03", reason: "x" }, { date: "2026-11-02", reason: "x" }, { date: "2026-11-05", reason: "x" },
   ]);
   assert.deepEqual(periods.map((p) => [p.from, p.to]), [["2026-11-02", "2026-11-03"], ["2026-11-05", "2026-11-05"]]);
+});
+
+test("forslag går forbi booking-vinduet når dagene er sperret", () => {
+  const blocked = dateRange(day(0), day(13)).map((date) => ({ date, reason: "" }));
+  // tor 12. nov (am, pm), så fre 13. nov – utenfor vinduet
+  assert.deepEqual(suggestedSlots([], 3, now, blocked), [
+    { date: day(14), slot: "am" }, { date: day(14), slot: "pm" }, { date: day(15), slot: "am" },
+  ]);
+  assert.equal(bookableFrom(day(14), now), null);
+  assert.equal(bookableFrom(day(15), now), day(1));
 });

@@ -362,3 +362,8 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
   .day-label { justify-content: flex-start; gap: 6px; }
   .day-label .done { margin-left: auto; }
 }
+
+/* Forslag lenger frem enn booking-vinduet */
+.opens { display: block; font-size: 0.75rem; color: var(--muted); }
+.opens::before { content: "⏳ "; }
+.queue li .opens { display: inline; margin-left: 6px; }
