@@ -1,13 +1,13 @@
-// Versjon (v=16) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=17) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=16";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=16";
+import { createStore } from "./store.js?v=17";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=17";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods, bookableFrom,
-} from "./rules.js?v=16";
+} from "./rules.js?v=17";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -143,13 +143,16 @@ function suggestionHTML(x) {
     (opens ? `<span class="opens">kan bookes fra ${esc(dayFmt.format(parseISODate(opens)))}</span>` : "");
 }
 
-// Fyll skjemaet med forslaget til innlogget bruker, så lenge de ikke har valgt selv
+// Fyll skjemaet med forslaget til innlogget bruker, ellers neste ledige økt som kan bookes nå,
+// så lenge brukeren ikke har valgt selv
 function prefillForm() {
   if (formTouched) return;
   const mine = queueWithSuggestions().find((q) => q.person.id === currentUserId)?.suggestion;
-  if (!mine || bookableFrom(mine.date)) return;
-  $("f-date").value = mine.date;
-  document.querySelector(`input[name="slot"][value="${mine.slot}"]`).checked = true;
+  const next = suggestedSlots(state.bookings, 1, new Date(), state.blocked)[0];
+  const pick = [mine, next].find((x) => x && !bookableFrom(x.date));
+  if (!pick) return;
+  $("f-date").value = pick.date;
+  document.querySelector(`input[name="slot"][value="${pick.slot}"]`).checked = true;
 }
 
 function renderFormHint() {
