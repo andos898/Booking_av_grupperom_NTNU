@@ -61,3 +61,9 @@ test("køen hopper over de som har maks", () => {
   const bookings = [1, 2, 3, 4].map((n) => ({ personId: "a", date: day(n), slot: "pm", room: "R" }));
   assert.deepEqual(bookingQueue(people, bookings, now).map((x) => x.person.id), ["b"]);
 });
+
+test("16-20 er gyldig økt og aktiv til kl 20", () => {
+  assert.equal(validateBooking({ ...base, slot: "eve" }, [], now), null);
+  assert.equal(isActive({ date: day(0), slot: "eve" }, new Date(2026, 9, 29, 19, 0)), true);
+  assert.equal(isActive({ date: day(0), slot: "eve" }, new Date(2026, 9, 29, 20, 0)), false);
+});

@@ -4,7 +4,7 @@ Statisk nettside (GitHub Pages) som koordinerer hvem i gruppa som skal booke gru
 
 ## Krav
 - Vise hvem som er neste til å booke (rotasjon)
-- Kalender (2 uker frem) med økter 08:00–12:00 og 12:00–16:00
+- Kalender (2 uker frem) med økter 08:00–12:00, 12:00–16:00 og 16:00–20:00
 - Kun 4-timers intervaller
 - Maks 4 aktive bookinger per person
 - Maks 14 dager frem i tid

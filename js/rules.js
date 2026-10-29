@@ -3,6 +3,7 @@
 export const SLOTS = [
   { id: "am", label: "08:00–12:00", start: 8, end: 12 },
   { id: "pm", label: "12:00–16:00", start: 12, end: 16 },
+  { id: "eve", label: "16:00–20:00", start: 16, end: 20 },
 ];
 
 export const MAX_ACTIVE_BOOKINGS = 4;
@@ -63,7 +64,7 @@ export function normalizeRoom(room) {
  */
 export function validateBooking({ personId, date, slot, room }, bookings, now = new Date()) {
   if (!personId) return "Velg hvem du er før du booker.";
-  if (!slotById(slot)) return "Du kan bare booke 4-timers økter: 08:00–12:00 eller 12:00–16:00.";
+  if (!slotById(slot)) return "Du kan bare booke 4-timers økter: 08:00–12:00, 12:00–16:00 eller 16:00–20:00.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return "Velg en dato.";
   if (!normalizeRoom(room)) return "Skriv inn hvilket rom (sted) du har booket.";
 

@@ -4,7 +4,7 @@ En enkel nettside for gruppa som viser **hvem som skal booke grupperom neste gan
 
 ## Regler
 
-- Bare 4-timers økter: **08:00–12:00** og **12:00–16:00**
+- Bare 4-timers økter: **08:00–12:00**, **12:00–16:00** og **16:00–20:00**
 - Maks **4 aktive bookinger** per person (en booking slutter å telle når økta er ferdig)
 - Maks **14 dager** frem i tid
 - Samme rom kan ikke bookes to ganger i samme økt
@@ -23,11 +23,11 @@ Det er ingen passord. Man velger bare hvem man er, så dette er laget for en gru
 
 1. Lag et repo på GitHub og push koden:
    ```bash
-   git remote add origin https://github.com/<brukernavn>/booking_rom_ntnu.git
+   git remote add origin https://github.com/andos898/Booking_av_grupperom_NTNU.git
    git push -u origin main
    ```
 2. Gå til **Settings → Pages** i repoet. Under *Build and deployment* velger du **Deploy from a branch**, deretter `main` og `/ (root)`.
-3. Etter et minutt er siden ute på `https://<brukernavn>.github.io/booking_rom_ntnu/`.
+3. Etter et minutt er siden ute på `https://andos898.github.io/Booking_av_grupperom_NTNU/`.
 
 ## Delt lagring med Firebase (anbefalt)
 
