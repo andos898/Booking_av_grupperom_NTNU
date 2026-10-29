@@ -318,6 +318,20 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
 .day.covered .slot:last-child.open:not(:has(.chip)) { opacity: 0.45; }
 @media (min-width: 701px) { .day-label .done { font-size: 0; } .day-label .done::before { content: "✓"; font-size: 0.75rem; } }
 
+/* Sperrede dager */
+.admin-card h3 { margin: 4px 0; font-size: 0.95rem; }
+.admin-card .admin-sub { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.admin-card form { margin: 10px 0 6px; }
+.admin-card form label { display: block; margin-bottom: 10px; font-size: 0.85rem; color: var(--muted); }
+.admin-card form input { display: block; width: 100%; margin-top: 4px; box-sizing: border-box; }
+.date-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn.full { width: 100%; }
+.blocked-list { margin-top: 8px; }
+.day.blocked { background: repeating-linear-gradient(135deg, var(--past) 0 8px, transparent 8px 16px); }
+.day.blocked .slot { opacity: 0.5; }
+.blocked-tag { font-size: 0.68rem; font-weight: 700; color: var(--danger); white-space: nowrap; }
+@media (max-width: 700px) { .day-label .blocked-tag { margin-left: auto; } }
+
 /* Telefon: tydeligere skille mellom delene */
 @media (max-width: 900px) {
   body { background: var(--past); }

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=14" />
+  <link rel="stylesheet" href="css/style.css?v=15" />
 </head>
 <body>
   <header class="topbar">
@@ -68,11 +68,31 @@
         <ul id="my-bookings" class="mine"></ul>
       </section>
 
-      <section class="card people-card">
+      <section class="card people-card admin-card">
         <details>
-          <summary><h2>Brukere <span id="people-count" class="count"></span></h2></summary>
+          <summary><h2>Administrer</h2></summary>
+          <h3>Brukere <span id="people-count" class="count"></span></h3>
           <p class="muted small">Fjerner du en bruker, slettes også bookingene deres.</p>
           <ul id="people-list" class="mine"></ul>
+
+          <h3 class="admin-sub">Sperrede dager <span id="blocked-count" class="count"></span></h3>
+          <p class="muted small">Dager som ikke kan bookes, f.eks. når alle rom hos NTNU er fullbooket. De hoppes over i forslagene.</p>
+          <form id="blocked-form" novalidate>
+            <div class="date-pair">
+              <label>Fra
+                <input type="date" id="b-from" required />
+              </label>
+              <label>Til (valgfri)
+                <input type="date" id="b-to" />
+              </label>
+            </div>
+            <label>Grunn (valgfri)
+              <input type="text" id="b-reason" maxlength="60" placeholder="f.eks. Alt fullbooket hos NTNU" autocomplete="off" />
+            </label>
+            <p id="blocked-error" class="error" role="alert"></p>
+            <button class="btn ghost full" type="submit">Sperr dager</button>
+          </form>
+          <ul id="blocked-list" class="mine blocked-list"></ul>
         </details>
       </section>
     </aside>
@@ -105,6 +125,6 @@
 
   <div id="toast" class="toast" role="status"></div>
 
-  <script type="module" src="js/app.js?v=14"></script>
+  <script type="module" src="js/app.js?v=15"></script>
 </body>
 </html>

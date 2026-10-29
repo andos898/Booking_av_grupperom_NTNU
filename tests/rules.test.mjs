@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateBooking, bookingQueue, isActive, toISODate, addDays, suggestedSlots, isDayCovered } from "../js/rules.js";
+import { validateBooking, bookingQueue, isActive, toISODate, addDays, suggestedSlots, isDayCovered, dateRange, blockedPeriods } from "../js/rules.js";
 
 const now = new Date(2026, 9, 29, 9, 0); // tor 29. okt 2026 kl 09:00
 const day = (n) => toISODate(addDays(now, n));
@@ -87,4 +87,20 @@ test("forslag: dag dekket 08-16 → neste dag, selv om 16-20 er ledig", () => {
   assert.equal(isDayCovered(day(1), bookings), true);
   assert.equal(isDayCovered(day(0), bookings), false);
   assert.deepEqual(suggestedSlots(bookings, 1, now), [{ date: day(4), slot: "am" }]);
+});
+
+test("sperrede dager kan ikke bookes og hoppes over i forslag", () => {
+  const blocked = dateRange(day(0), day(13)).map((date) => ({ date, reason: "Fullbooket" }));
+  assert.match(validateBooking(base, [], now, blocked), /sperret \(Fullbooket\)/);
+  assert.equal(validateBooking({ ...base, date: day(14) }, [], now, blocked), null);
+  // 14 dager frem er fre 12. nov – første forslag
+  assert.deepEqual(suggestedSlots([], 1, now, blocked), [{ date: day(14), slot: "am" }]);
+});
+
+test("dateRange og blockedPeriods", () => {
+  assert.deepEqual(dateRange("2026-10-30", "2026-11-02"), ["2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02"]);
+  const periods = blockedPeriods([
+    { date: "2026-11-03", reason: "x" }, { date: "2026-11-02", reason: "x" }, { date: "2026-11-05", reason: "x" },
+  ]);
+  assert.deepEqual(periods.map((p) => [p.from, p.to]), [["2026-11-02", "2026-11-03"], ["2026-11-05", "2026-11-05"]]);
 });

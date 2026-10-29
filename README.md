@@ -43,6 +43,7 @@ GitHub Pages kan bare vise statiske filer. Uten noe mer oppsett lagres data derf
      match /databases/{db}/documents {
        match /people/{id}   { allow read, create, delete: if true; }
        match /bookings/{id} { allow read, create, delete: if true; }
+       match /blocked/{id}  { allow read, create, update, delete: if true; }
      }
    }
    ```

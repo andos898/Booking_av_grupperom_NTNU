@@ -1,19 +1,19 @@
-// Versjon (v=14) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=15) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=14";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=14";
+import { createStore } from "./store.js?v=15";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=15";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-  suggestedSlots, isDayCovered,
-} from "./rules.js?v=14";
+  suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods,
+} from "./rules.js?v=15";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
 
 let store;
-let state = { people: [], bookings: [] };
+let state = { people: [], bookings: [], blocked: [] };
 let currentUserId = readUser();
 let formTouched = false; // ikke overskriv dato/økt brukeren har valgt selv
 
@@ -41,7 +41,7 @@ const slotText = (x) => `${dayFmt.format(parseISODate(x.date))} · ${slotById(x.
 // Køen med forslag: nr. 1 får første udekkede økt, nr. 2 den neste osv.
 function queueWithSuggestions(now = new Date()) {
   const queue = bookingQueue(state.people, state.bookings, now);
-  const sugg = suggestedSlots(state.bookings, queue.length, now);
+  const sugg = suggestedSlots(state.bookings, queue.length, now, state.blocked);
   return queue.map((q, i) => ({ ...q, suggestion: sugg[i] || null }));
 }
 
@@ -69,6 +69,21 @@ function render() {
   renderCalendar();
   renderRooms();
   renderPeople();
+  renderBlocked();
+}
+
+const periodText = (p) =>
+  p.from === p.to ? dayFmt.format(parseISODate(p.from)) : `${dayFmt.format(parseISODate(p.from))} – ${dayFmt.format(parseISODate(p.to))}`;
+
+function renderBlocked() {
+  const todayISO = toISODate(new Date());
+  const periods = blockedPeriods(state.blocked.filter((x) => x.date >= todayISO));
+  $("blocked-count").textContent = periods.length ? `(${periods.length})` : "";
+  $("blocked-list").innerHTML = periods.length
+    ? periods.map((p) => `<li><span class="when"><b>${esc(periodText(p))}</b>
+        <span class="muted">${p.reason ? esc(p.reason) : "Ingen grunn oppgitt"}</span></span>
+        <button class="icon-btn" data-unblock="${esc(p.dates.join(","))}" title="Opphev sperring" aria-label="Opphev sperring ${esc(periodText(p))}">✕</button></li>`).join("")
+    : `<li class="muted">Ingen sperrede dager.</li>`;
 }
 
 function renderPeople() {
@@ -137,10 +152,13 @@ function prefillForm() {
 function renderFormHint() {
   const date = $("f-date").value;
   const slot = new FormData($("booking-form")).get("slot");
-  const next = suggestedSlots(state.bookings, 1)[0];
+  const next = suggestedSlots(state.bookings, 1, new Date(), state.blocked)[0];
   const useNext = next ? ` <button type="button" class="link" data-suggest="${next.date}|${next.slot}">Book heller ${esc(slotText(next))}</button>` : "";
+  const block = date && blockedOn(date, state.blocked);
   let msg = "";
-  if (date && isDayCovered(date, state.bookings)) {
+  if (block) {
+    msg = `Denne dagen er sperret${block.reason ? ` (${esc(block.reason)})` : ""}.${useNext}`;
+  } else if (date && isDayCovered(date, state.bookings)) {
     msg = `08–16 er allerede dekket denne dagen – 16–20 trengs ikke.${useNext}`;
   } else if (slot === "eve") {
     msg = `16–20 trengs vanligvis ikke – prioriter 08–12 og 12–16.${useNext}`;
@@ -187,14 +205,15 @@ function renderCalendar() {
     const iso = toISODate(d);
     const inRange = d >= today && d <= last;
     const wd = (d.getDay() + 6) % 7;
-    const covered = inRange && isDayCovered(iso, state.bookings);
-    const cls = ["day", covered && "covered", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
+    const block = inRange && blockedOn(iso, state.blocked);
+    const covered = inRange && !block && isDayCovered(iso, state.bookings);
+    const cls = ["day", covered && "covered", block && "blocked", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
     html += `<div class="${cls}">
-      <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}</div>
+      <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}${block ? `<span class="blocked-tag" title="${esc(block.reason || "Sperret")}">Sperret</span>` : ""}</div>
       <div class="day-slots">`;
     for (const s of SLOTS) {
       const list = (byKey.get(`${iso}|${s.id}`) || []).sort((a, b) => a.room.localeCompare(b.room, "nb"));
-      const open = inRange && slotStart({ date: iso, slot: s.id }) > now;
+      const open = inRange && !block && slotStart({ date: iso, slot: s.id }) > now;
       html += `<div class="slot ${open ? "open" : ""}" ${open ? `data-date="${iso}" data-slot="${s.id}"` : ""}>
         <span class="slot-time">${s.label}</span>
         ${list.map((b) => {
@@ -248,7 +267,7 @@ function setupForm() {
       slot: new FormData(e.target).get("slot"),
       room: $("f-room").value.trim().replace(/\s+/g, " "),
     };
-    const err = validateBooking(booking, state.bookings);
+    const err = validateBooking(booking, state.bookings, new Date(), state.blocked);
     $("form-error").textContent = err || "";
     if (err) return;
     try {
@@ -328,10 +347,54 @@ function setupUsers() {
   });
 }
 
+function setupBlocked() {
+  const today = toISODate(new Date());
+  const from = $("b-from");
+  const to = $("b-to");
+  from.min = to.min = today;
+  from.value = today;
+  from.addEventListener("change", () => {
+    to.min = from.value || today;
+    if (to.value && to.value < from.value) to.value = from.value;
+  });
+
+  $("blocked-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!from.value) return ($("blocked-error").textContent = "Velg en fra-dato.");
+    if (to.value && to.value < from.value) return ($("blocked-error").textContent = "Til-dato må være etter fra-dato.");
+    const dates = dateRange(from.value, to.value || from.value);
+    const reason = $("b-reason").value.trim().replace(/\s+/g, " ");
+    const taken = state.bookings.filter((b) => dates.includes(b.date)).length;
+    if (taken && !confirm(`Det finnes ${taken} booking${taken > 1 ? "er" : ""} i perioden. De blir liggende. Sperre likevel?`)) return;
+    $("blocked-error").textContent = "";
+    try {
+      await store.blockDates(dates, reason);
+      to.value = "";
+      $("b-reason").value = "";
+      toast(`Sperret ${dates.length} dag${dates.length > 1 ? "er" : ""}`);
+    } catch (ex) {
+      $("blocked-error").textContent = "Kunne ikke sperre: " + ex.message;
+    }
+  });
+
+  $("blocked-list").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-unblock]");
+    if (!btn) return;
+    if (!confirm("Oppheve sperringen?")) return;
+    try {
+      await store.unblockDates(btn.dataset.unblock.split(","));
+      toast("Sperring opphevet");
+    } catch (ex) {
+      alert("Kunne ikke oppheve: " + ex.message);
+    }
+  });
+}
+
 async function main() {
   document.querySelectorAll(".booking-link").forEach((a) => (a.href = BOOKING_URL));
   setupForm();
   setupUsers();
+  setupBlocked();
   store = await createStore();
   const badge = $("mode-badge");
   badge.textContent = store.mode === "firebase" ? "Delt (Firebase)" : "Lokal demo";
