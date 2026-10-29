@@ -88,6 +88,38 @@ export function validateBooking({ personId, date, slot, room }, bookings, now = 
   return null;
 }
 
+// Økter gruppa trenger dekket hver dag. 16–20 er valgfri og foreslås ikke.
+export const CORE_SLOTS = ["am", "pm"];
+
+export function isWeekend(d) {
+  return d.getDay() === 0 || d.getDay() === 6;
+}
+
+// En dag er dekket når alle kjerneøktene (08–16) har minst én booking
+export function isDayCovered(date, bookings) {
+  return CORE_SLOTS.every((slot) => bookings.some((b) => b.date === date && b.slot === slot));
+}
+
+/**
+ * De neste udekkede kjerneøktene (hverdager 08–12 / 12–16) i rekkefølge,
+ * innenfor booking-vinduet. Brukes til å foreslå hva neste i køen skal booke.
+ */
+export function suggestedSlots(bookings, count, now = new Date()) {
+  const out = [];
+  for (let i = 0; i <= MAX_DAYS_AHEAD && out.length < count; i++) {
+    const d = addDays(now, i);
+    if (isWeekend(d)) continue;
+    const date = toISODate(d);
+    for (const slot of CORE_SLOTS) {
+      if (out.length >= count) break;
+      if (slotStart({ date, slot }) <= now) continue;
+      if (bookings.some((b) => b.date === date && b.slot === slot)) continue;
+      out.push({ date, slot });
+    }
+  }
+  return out;
+}
+
 /**
  * Køen for hvem som skal booke neste gang.
  * Rotasjon: færrest aktive bookinger først, deretter den som har ventet lengst

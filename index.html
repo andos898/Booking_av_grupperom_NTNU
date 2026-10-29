@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=12" />
+  <link rel="stylesheet" href="css/style.css?v=13" />
 </head>
 <body>
   <header class="topbar">
@@ -56,9 +56,10 @@
             <input type="text" id="f-room" list="room-list" placeholder="f.eks. Gamle fysikk R5" autocomplete="off" required />
             <datalist id="room-list"></datalist>
           </label>
+          <p id="form-hint" class="hint" hidden></p>
           <p id="form-error" class="error" role="alert"></p>
           <button class="btn primary" type="submit">Legg inn booking</button>
-          <p class="muted small">Maks 4 aktive bookinger per person, maks 14 dager frem.</p>
+          <p class="muted small">Maks 4 aktive bookinger per person, maks 14 dager frem. Vi trenger 08–16 hver hverdag – 16–20 er valgfritt.</p>
         </form>
       </section>
 
@@ -104,6 +105,6 @@
 
   <div id="toast" class="toast" role="status"></div>
 
-  <script type="module" src="js/app.js?v=12"></script>
+  <script type="module" src="js/app.js?v=13"></script>
 </body>
 </html>

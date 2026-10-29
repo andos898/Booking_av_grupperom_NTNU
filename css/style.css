@@ -291,3 +291,62 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
 .people-card summary h2 { margin: 0; }
 .people-card details[open] summary { margin-bottom: 10px; }
 .people-card p { margin: 0 0 6px; }
+
+/* Forslag: hvilken dato/økt hver i køen bør booke */
+.target {
+  display: block; margin-top: 2px;
+  font-size: 0.8rem; font-weight: 600; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.target::before { content: "📅 "; }
+.next-three li:first-child .target { font-size: 0.95rem; letter-spacing: 0; }
+.queue li .target { display: inline; margin: 0 0 0 6px; font-size: 0.78rem; }
+.queue li .target::before { content: "→ "; }
+
+.hint {
+  margin: 0 0 10px; padding: 10px 12px; border-radius: 9px;
+  background: #fff3d6; color: #6b4600; font-size: 0.85rem;
+}
+@media (prefers-color-scheme: dark) { .hint { background: #3a2d10; color: #f5c66b; } }
+.hint .link {
+  display: block; margin-top: 6px; padding: 0;
+  font: inherit; font-weight: 700; color: var(--accent);
+  background: none; border: 0; text-decoration: underline; cursor: pointer; text-align: left;
+}
+
+/* Dag dekket 08–16: merk dagen og ton ned 16–20 */
+.day-label .done { font-size: 0.68rem; font-weight: 600; color: #1f8a4c; white-space: nowrap; }
+@media (prefers-color-scheme: dark) { .day-label .done { color: #6fd39a; } }
+.day.covered .slot:last-child.open:not(:has(.chip)) { opacity: 0.45; }
+@media (min-width: 701px) { .day-label .done { font-size: 0; } .day-label .done::before { content: "✓"; font-size: 0.75rem; } }
+
+/* Telefon: tydeligere skille mellom delene */
+@media (max-width: 900px) {
+  body { background: var(--past); }
+  .layout { gap: 24px; }
+  .card { border-width: 1px; box-shadow: 0 2px 10px rgba(20, 30, 50, 0.08); }
+  .card h2, .cal-head h2, .people-card summary h2 {
+    font-size: 1.05rem; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card > h2, .cal-head {
+    padding-bottom: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+  }
+  .cal-head h2 { margin: 0; }
+  .card > h2::before, .cal-head h2::before, .people-card summary h2::before {
+    content: ""; width: 4px; height: 1.1em; border-radius: 2px; background: var(--accent); flex: none;
+  }
+  .next > h2::before { display: none; }
+  .book-card { border-top: 4px solid #1f8a4c; }
+  .book-card > h2::before { background: #1f8a4c; }
+  .calendar { gap: 12px; }
+  .day-label { background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px 10px; font-size: 0.85rem; }
+}
+@media (max-width: 900px) and (prefers-color-scheme: dark) {
+  body { background: #0a0e14; }
+  .card { box-shadow: none; }
+}
+@media (max-width: 700px) {
+  .day-label { justify-content: flex-start; gap: 6px; }
+  .day-label .done { margin-left: auto; }
+}

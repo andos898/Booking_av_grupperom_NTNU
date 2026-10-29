@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateBooking, bookingQueue, isActive, toISODate, addDays } from "../js/rules.js";
+import { validateBooking, bookingQueue, isActive, toISODate, addDays, suggestedSlots, isDayCovered } from "../js/rules.js";
 
 const now = new Date(2026, 9, 29, 9, 0); // tor 29. okt 2026 kl 09:00
 const day = (n) => toISODate(addDays(now, n));
@@ -66,4 +66,25 @@ test("16-20 er gyldig økt og aktiv til kl 20", () => {
   assert.equal(validateBooking({ ...base, slot: "eve" }, [], now), null);
   assert.equal(isActive({ date: day(0), slot: "eve" }, new Date(2026, 9, 29, 19, 0)), true);
   assert.equal(isActive({ date: day(0), slot: "eve" }, new Date(2026, 9, 29, 20, 0)), false);
+});
+
+test("forslag: neste udekkede 08-16-økter, hopper over helg og 16-20", () => {
+  // tor 09:00: 08-12 har startet → tor 12-16, fre 08-12, fre 12-16, man 08-12
+  assert.deepEqual(suggestedSlots([], 4, now), [
+    { date: day(0), slot: "pm" },
+    { date: day(1), slot: "am" },
+    { date: day(1), slot: "pm" },
+    { date: day(4), slot: "am" },
+  ]);
+});
+
+test("forslag: dag dekket 08-16 → neste dag, selv om 16-20 er ledig", () => {
+  const bookings = [
+    { personId: "a", date: day(0), slot: "pm", room: "X" },
+    { personId: "b", date: day(1), slot: "am", room: "X" },
+    { personId: "c", date: day(1), slot: "pm", room: "X" },
+  ];
+  assert.equal(isDayCovered(day(1), bookings), true);
+  assert.equal(isDayCovered(day(0), bookings), false);
+  assert.deepEqual(suggestedSlots(bookings, 1, now), [{ date: day(4), slot: "am" }]);
 });

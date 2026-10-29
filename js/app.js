@@ -1,12 +1,13 @@
-// Versjon (v=12) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=13) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=12";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=12";
+import { createStore } from "./store.js?v=13";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=13";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-} from "./rules.js?v=12";
+  suggestedSlots, isDayCovered,
+} from "./rules.js?v=13";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -14,6 +15,7 @@ const $ = (id) => document.getElementById(id);
 let store;
 let state = { people: [], bookings: [] };
 let currentUserId = readUser();
+let formTouched = false; // ikke overskriv dato/økt brukeren har valgt selv
 
 function readUser() {
   try { return localStorage.getItem(USER_KEY) || ""; } catch { return ""; }
@@ -34,6 +36,15 @@ function hue(str) {
 const dayFmt = new Intl.DateTimeFormat("nb-NO", { weekday: "short", day: "numeric", month: "short" });
 const shortFmt = new Intl.DateTimeFormat("nb-NO", { weekday: "short" });
 
+const slotText = (x) => `${dayFmt.format(parseISODate(x.date))} · ${slotById(x.slot).label}`;
+
+// Køen med forslag: nr. 1 får første udekkede økt, nr. 2 den neste osv.
+function queueWithSuggestions(now = new Date()) {
+  const queue = bookingQueue(state.people, state.bookings, now);
+  const sugg = suggestedSlots(state.bookings, queue.length, now);
+  return queue.map((q, i) => ({ ...q, suggestion: sugg[i] || null }));
+}
+
 function personName(id) {
   return state.people.find((p) => p.id === id)?.name || "Ukjent";
 }
@@ -51,7 +62,9 @@ function toast(msg) {
 function render() {
   if (currentUserId && !state.people.some((p) => p.id === currentUserId) && state.people.length) writeUser("");
   renderUserPicker();
+  prefillForm();
   renderQueue();
+  renderFormHint();
   renderMine();
   renderCalendar();
   renderRooms();
@@ -81,8 +94,7 @@ function renderUserPicker() {
 }
 
 function renderQueue() {
-  const now = new Date();
-  const queue = bookingQueue(state.people, state.bookings, now);
+  const queue = queueWithSuggestions();
   const full = state.people.filter((p) => !queue.some((q) => q.person.id === p.id));
 
   const top = queue.slice(0, 3);
@@ -90,7 +102,8 @@ function renderQueue() {
     const me = q.person.id === currentUserId;
     return `<li class="${me ? "me" : ""}">
       <span class="rank">${i + 1}</span>
-      <span class="name">${esc(q.person.name)}${me ? ` <span class="you">deg</span>` : ""}</span>
+      <span class="name">${esc(q.person.name)}${me ? ` <span class="you">deg</span>` : ""}
+        ${suggestionHTML(q.suggestion)}</span>
       <span class="muted small">${q.active}/${MAX_ACTIVE_BOOKINGS}</span></li>`;
   }).join("");
 
@@ -102,10 +115,40 @@ function renderQueue() {
   $("rest").hidden = !rest.length && !full.length;
   $("queue").innerHTML =
     rest.map((q) => `<li class="${q.person.id === currentUserId ? "me" : ""}">
-        <span class="name">${esc(q.person.name)}</span>
+        <span class="name">${esc(q.person.name)} ${suggestionHTML(q.suggestion)}</span>
         <span class="muted small">${q.active}/${MAX_ACTIVE_BOOKINGS}</span></li>`).join("") +
     full.map((p) => `<li class="full ${p.id === currentUserId ? "me" : ""}">
         <span class="name">${esc(p.name)}</span><span class="small">full</span></li>`).join("");
+}
+
+function suggestionHTML(x) {
+  return x ? `<span class="target">${esc(slotText(x))}</span>` : "";
+}
+
+// Fyll skjemaet med forslaget til innlogget bruker, så lenge de ikke har valgt selv
+function prefillForm() {
+  if (formTouched) return;
+  const mine = queueWithSuggestions().find((q) => q.person.id === currentUserId)?.suggestion;
+  if (!mine) return;
+  $("f-date").value = mine.date;
+  document.querySelector(`input[name="slot"][value="${mine.slot}"]`).checked = true;
+}
+
+function renderFormHint() {
+  const date = $("f-date").value;
+  const slot = new FormData($("booking-form")).get("slot");
+  const next = suggestedSlots(state.bookings, 1)[0];
+  const useNext = next ? ` <button type="button" class="link" data-suggest="${next.date}|${next.slot}">Book heller ${esc(slotText(next))}</button>` : "";
+  let msg = "";
+  if (date && isDayCovered(date, state.bookings)) {
+    msg = `08–16 er allerede dekket denne dagen – 16–20 trengs ikke.${useNext}`;
+  } else if (slot === "eve") {
+    msg = `16–20 trengs vanligvis ikke – prioriter 08–12 og 12–16.${useNext}`;
+  } else if (date && state.bookings.some((b) => b.date === date && b.slot === slot)) {
+    msg = `Denne økta er allerede booket av noen.${useNext}`;
+  }
+  $("form-hint").innerHTML = msg;
+  $("form-hint").hidden = !msg;
 }
 
 function renderMine() {
@@ -144,9 +187,10 @@ function renderCalendar() {
     const iso = toISODate(d);
     const inRange = d >= today && d <= last;
     const wd = (d.getDay() + 6) % 7;
-    const cls = ["day", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
+    const covered = inRange && isDayCovered(iso, state.bookings);
+    const cls = ["day", covered && "covered", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
     html += `<div class="${cls}">
-      <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span></div>
+      <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}</div>
       <div class="day-slots">`;
     for (const s of SLOTS) {
       const list = (byKey.get(`${iso}|${s.id}`) || []).sort((a, b) => a.room.localeCompare(b.room, "nb"));
@@ -182,6 +226,20 @@ function setupForm() {
   dateInput.max = toISODate(addDays(today, MAX_DAYS_AHEAD));
   dateInput.value = toISODate(addDays(today, 1));
 
+  $("booking-form").addEventListener("change", (e) => {
+    if (e.target === dateInput || e.target.name === "slot") formTouched = true;
+    renderFormHint();
+  });
+  $("form-hint").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-suggest]");
+    if (!btn) return;
+    const [date, slot] = btn.dataset.suggest.split("|");
+    dateInput.value = date;
+    document.querySelector(`input[name="slot"][value="${slot}"]`).checked = true;
+    formTouched = true;
+    renderFormHint();
+  });
+
   $("booking-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const booking = {
@@ -196,6 +254,7 @@ function setupForm() {
     try {
       await store.addBooking(booking);
       $("f-room").value = "";
+      formTouched = false;
       toast(`Booket ${slotById(booking.slot).label} ${dayFmt.format(parseISODate(booking.date))} – ${booking.room}`);
     } catch (ex) {
       $("form-error").textContent = ex.message;
@@ -208,6 +267,8 @@ function setupForm() {
     if (!slot) return;
     dateInput.value = slot.dataset.date;
     document.querySelector(`input[name="slot"][value="${slot.dataset.slot}"]`).checked = true;
+    formTouched = true;
+    renderFormHint();
     $("form-error").textContent = currentUserId ? "" : "Velg hvem du er før du booker.";
     $("booking-form").scrollIntoView({ behavior: "smooth", block: "center" });
     $("f-room").focus({ preventScroll: true });
@@ -226,6 +287,7 @@ function setupUsers() {
   const dialog = $("user-dialog");
   $("current-user").addEventListener("change", (e) => {
     writeUser(e.target.value);
+    formTouched = false;
     $("form-error").textContent = "";
     render();
   });

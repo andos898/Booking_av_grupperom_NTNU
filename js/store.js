@@ -1,7 +1,7 @@
 // Lagring: Firestore når FIREBASE_CONFIG er satt, ellers localStorage.
 // Begge gir samme grensesnitt: subscribe(cb), addPerson(name), addBooking(b), deleteBooking(id), deletePerson(id).
-import { FIREBASE_CONFIG } from "./config.js?v=12";
-import { validateBooking, normalizeRoom } from "./rules.js?v=12";
+import { FIREBASE_CONFIG } from "./config.js?v=13";
+import { validateBooking, normalizeRoom } from "./rules.js?v=13";
 
 const FIREBASE_VERSION = "10.12.2";
 
