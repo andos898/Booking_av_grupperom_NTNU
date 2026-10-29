@@ -96,7 +96,7 @@ function renderQueue() {
 
   if (!state.people.length) $("next-hint").textContent = "Lag en bruker for å komme i gang.";
   else if (!queue.length) $("next-hint").textContent = `Alle har ${MAX_ACTIVE_BOOKINGS} aktive bookinger.`;
-  else $("next-hint").textContent = "Tallet viser aktive bookinger.";
+  else $("next-hint").textContent = "";
 
   const rest = queue.slice(3);
   $("rest").hidden = !rest.length && !full.length;
