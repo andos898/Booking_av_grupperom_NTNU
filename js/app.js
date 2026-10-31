@@ -1,13 +1,14 @@
-// Versjon (v=18) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=19) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=18";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=18";
+import { createStore } from "./store.js?v=19";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=19";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods, bookableFrom,
-} from "./rules.js?v=18";
+  BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
+} from "./rules.js?v=19";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -80,7 +81,7 @@ function renderBlocked() {
   const periods = blockedPeriods(state.blocked.filter((x) => x.date >= todayISO));
   $("blocked-count").textContent = periods.length ? `(${periods.length})` : "";
   $("blocked-list").innerHTML = periods.length
-    ? periods.map((p) => `<li><span class="when"><b>${esc(periodText(p))}</b>
+    ? periods.map((p) => `<li><span class="when"><b>${esc(periodText(p))}${isFullDayBlock(p) ? "" : ` · ${blockPartLabel(p)}`}</b>
         <span class="muted">${p.reason ? esc(p.reason) : "Ingen grunn oppgitt"}</span></span>
         <button class="icon-btn" data-unblock="${esc(p.dates.join(","))}" title="Opphev sperring" aria-label="Opphev sperring ${esc(periodText(p))}">✕</button></li>`).join("")
     : `<li class="muted">Ingen sperrede dager.</li>`;
@@ -160,14 +161,14 @@ function renderFormHint() {
   const slot = new FormData($("booking-form")).get("slot");
   const next = suggestedSlots(state.bookings, 1, new Date(), state.blocked)[0];
   const useNext = next && !bookableFrom(next.date) ? ` <button type="button" class="link" data-suggest="${next.date}|${next.slot}">Book heller ${esc(slotText(next))}</button>` : "";
-  const block = date && blockedOn(date, state.blocked);
+  const block = date && blockedOn(date, state.blocked, slot);
   const opens = date && bookableFrom(date);
   let msg = "";
   if (opens) {
     msg = `Denne datoen er mer enn ${MAX_DAYS_AHEAD} dager frem og kan bookes fra ${esc(dayFmt.format(parseISODate(opens)))}.`;
   } else if (block) {
-    msg = `Denne dagen er sperret${block.reason ? ` (${esc(block.reason)})` : ""}.${useNext}`;
-  } else if (date && isDayCovered(date, state.bookings)) {
+    msg = `Denne ${isFullDayBlock(block) ? "dagen" : "økta"} er sperret${block.reason ? ` (${esc(block.reason)})` : ""}.${useNext}`;
+  } else if (date && isDayCovered(date, state.bookings, state.blocked)) {
     msg = `08–16 er allerede dekket denne dagen – 16–20 trengs ikke.${useNext}`;
   } else if (slot === "eve") {
     msg = `16–20 trengs vanligvis ikke – prioriter 08–12 og 12–16.${useNext}`;
@@ -215,15 +216,17 @@ function renderCalendar() {
     const inRange = d >= today && d <= last;
     const wd = (d.getDay() + 6) % 7;
     const block = inRange && blockedOn(iso, state.blocked);
-    const covered = inRange && !block && isDayCovered(iso, state.bookings);
-    const cls = ["day", covered && "covered", block && "blocked", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
+    const fullBlock = block && isFullDayBlock(block);
+    const covered = inRange && !fullBlock && isDayCovered(iso, state.bookings, state.blocked);
+    const cls = ["day", covered && "covered", fullBlock && "blocked", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
     html += `<div class="${cls}">
-      <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}${block ? `<span class="blocked-tag" title="${esc(block.reason || "Sperret")}">Sperret</span>` : ""}</div>
+      <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}${block ? `<span class="blocked-tag" title="${esc(block.reason || "Sperret")}">Sperret${fullBlock ? "" : ` ${blockPartLabel(block)}`}</span>` : ""}</div>
       <div class="day-slots">`;
     for (const s of SLOTS) {
       const list = (byKey.get(`${iso}|${s.id}`) || []).sort((a, b) => a.room.localeCompare(b.room, "nb"));
-      const open = inRange && !block && slotStart({ date: iso, slot: s.id }) > now;
-      html += `<div class="slot ${open ? "open" : ""}" ${open ? `data-date="${iso}" data-slot="${s.id}"` : ""}>
+      const slotBlocked = block && blockedSlotIds(block).includes(s.id);
+      const open = inRange && !slotBlocked && slotStart({ date: iso, slot: s.id }) > now;
+      html += `<div class="slot ${open ? "open" : ""} ${slotBlocked && !fullBlock ? "blocked-slot" : ""}" ${open ? `data-date="${iso}" data-slot="${s.id}"` : ""}>
         <span class="slot-time">${s.label}</span>
         ${list.map((b) => {
           const mine = b.personId === currentUserId;
@@ -373,11 +376,12 @@ function setupBlocked() {
     if (to.value && to.value < from.value) return ($("blocked-error").textContent = "Til-dato må være etter fra-dato.");
     const dates = dateRange(from.value, to.value || from.value);
     const reason = $("b-reason").value.trim().replace(/\s+/g, " ");
-    const taken = state.bookings.filter((b) => dates.includes(b.date)).length;
+    const slots = BLOCK_PARTS[new FormData(e.target).get("part")] || BLOCK_PARTS.day;
+    const taken = state.bookings.filter((b) => dates.includes(b.date) && slots.includes(b.slot)).length;
     if (taken && !confirm(`Det finnes ${taken} booking${taken > 1 ? "er" : ""} i perioden. De blir liggende. Sperre likevel?`)) return;
     $("blocked-error").textContent = "";
     try {
-      await store.blockDates(dates, reason);
+      await store.blockDates(dates, reason, slots);
       to.value = "";
       $("b-reason").value = "";
       toast(`Sperret ${dates.length} dag${dates.length > 1 ? "er" : ""}`);

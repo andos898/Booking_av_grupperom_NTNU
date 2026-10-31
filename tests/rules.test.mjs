@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validateBooking, bookingQueue, isActive, toISODate, addDays, suggestedSlots, isDayCovered, dateRange, blockedPeriods, bookableFrom } from "../js/rules.js";
+import { validateBooking, bookingQueue, isActive, toISODate, addDays, suggestedSlots, isDayCovered, dateRange, blockedPeriods, bookableFrom, BLOCK_PARTS, isFullDayBlock, mergeBlockSlots } from "../js/rules.js";
 
 const now = new Date(2026, 9, 29, 9, 0); // tor 29. okt 2026 kl 09:00
 const day = (n) => toISODate(addDays(now, n));
@@ -68,13 +68,13 @@ test("16-20 er gyldig økt og aktiv til kl 20", () => {
   assert.equal(isActive({ date: day(0), slot: "eve" }, new Date(2026, 9, 29, 20, 0)), false);
 });
 
-test("forslag: neste udekkede 08-16-økter, hopper over helg og 16-20", () => {
-  // tor 09:00: 08-12 har startet → tor 12-16, fre 08-12, fre 12-16, man 08-12
+test("forslag: neste udekkede 08-16-økter, også i helga, hopper over 16-20", () => {
+  // tor 09:00: 08-12 har startet → tor 12-16, fre 08-12, fre 12-16, lør 08-12
   assert.deepEqual(suggestedSlots([], 4, now), [
     { date: day(0), slot: "pm" },
     { date: day(1), slot: "am" },
     { date: day(1), slot: "pm" },
-    { date: day(4), slot: "am" },
+    { date: day(2), slot: "am" },
   ]);
 });
 
@@ -86,7 +86,22 @@ test("forslag: dag dekket 08-16 → neste dag, selv om 16-20 er ledig", () => {
   ];
   assert.equal(isDayCovered(day(1), bookings), true);
   assert.equal(isDayCovered(day(0), bookings), false);
-  assert.deepEqual(suggestedSlots(bookings, 1, now), [{ date: day(4), slot: "am" }]);
+  assert.deepEqual(suggestedSlots(bookings, 1, now), [{ date: day(2), slot: "am" }]);
+});
+
+test("sperring før 12 / etter 12", () => {
+  const blocked = [{ date: day(1), reason: "", slots: BLOCK_PARTS.am }, { date: day(2), reason: "", slots: BLOCK_PARTS.pm }];
+  assert.match(validateBooking(base, [], now, blocked), /økta er sperret/);
+  assert.equal(validateBooking({ ...base, slot: "pm" }, [], now, blocked), null);
+  assert.match(validateBooking({ ...base, date: day(2), slot: "eve" }, [], now, blocked), /sperret/);
+  assert.deepEqual(suggestedSlots([], 4, now, blocked), [
+    { date: day(0), slot: "pm" }, { date: day(1), slot: "pm" }, { date: day(2), slot: "am" }, { date: day(3), slot: "am" },
+  ]);
+  // dekket når de usperrede kjerneøktene er booket
+  assert.equal(isDayCovered(day(1), [{ personId: "a", date: day(1), slot: "pm", room: "X" }], blocked), true);
+  // gammel sperring uten slots = hele dagen; før + etter slås sammen til hele dagen
+  assert.equal(isFullDayBlock({ date: day(1) }), true);
+  assert.deepEqual(mergeBlockSlots(blocked[0], BLOCK_PARTS.pm), ["am", "pm", "eve"]);
 });
 
 test("sperrede dager kan ikke bookes og hoppes over i forslag", () => {

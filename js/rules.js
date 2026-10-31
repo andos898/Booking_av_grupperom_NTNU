@@ -74,8 +74,8 @@ export function validateBooking({ personId, date, slot, room }, bookings, now = 
   const lastDay = addDays(now, MAX_DAYS_AHEAD);
   if (parseISODate(date) > lastDay) return `Du kan maks booke ${MAX_DAYS_AHEAD} dager frem i tid.`;
 
-  const block = blockedOn(date, blocked);
-  if (block) return `Denne dagen er sperret${block.reason ? ` (${block.reason})` : ""} – den kan ikke bookes.`;
+  const block = blockedOn(date, blocked, slot);
+  if (block) return `Denne ${isFullDayBlock(block) ? "dagen" : "økta"} er sperret${block.reason ? ` (${block.reason})` : ""} – den kan ikke bookes.`;
 
   if (activeBookingsFor(personId, bookings, now).length >= MAX_ACTIVE_BOOKINGS) {
     return `Du har allerede ${MAX_ACTIVE_BOOKINGS} aktive bookinger (maks).`;
@@ -91,9 +91,37 @@ export function validateBooking({ personId, date, slot, room }, bookings, now = 
   return null;
 }
 
-// Sperrede dager: [{ date: "YYYY-MM-DD", reason }] – f.eks. når NTNU er fullbooket
-export function blockedOn(date, blocked = []) {
-  return blocked.find((x) => x.date === date) || null;
+// Sperrede dager: [{ date: "YYYY-MM-DD", reason, slots }] – f.eks. når NTNU er fullbooket.
+// slots = øktene som er sperret; mangler den, er hele dagen sperret.
+export const BLOCK_PARTS = {
+  day: SLOTS.map((s) => s.id),
+  am: ["am"], // før 12
+  pm: ["pm", "eve"], // etter 12
+};
+
+export function blockedSlotIds(x) {
+  return x.slots?.length ? x.slots : BLOCK_PARTS.day;
+}
+
+export function isFullDayBlock(x) {
+  return BLOCK_PARTS.day.every((s) => blockedSlotIds(x).includes(s));
+}
+
+export function blockPartLabel(x) {
+  if (isFullDayBlock(x)) return "hele dagen";
+  return blockedSlotIds(x).includes("am") ? "før 12" : "etter 12";
+}
+
+// Sperringen for dagen, eller bare hvis den gjelder `slot` når den er gitt
+export function blockedOn(date, blocked = [], slot) {
+  const x = blocked.find((b) => b.date === date);
+  return x && (!slot || blockedSlotIds(x).includes(slot)) ? x : null;
+}
+
+// Øktene som blir sperret når `slots` legges til en eventuell eksisterende sperring
+export function mergeBlockSlots(existing, slots) {
+  const all = new Set([...(existing ? blockedSlotIds(existing) : []), ...slots]);
+  return SLOTS.map((s) => s.id).filter((id) => all.has(id));
 }
 
 // Alle datoer fra og med `from` til og med `to` ("YYYY-MM-DD")
@@ -103,17 +131,19 @@ export function dateRange(from, to) {
   return out;
 }
 
-// Slår sammen påfølgende sperrede dager med samme grunn til perioder
+// Slår sammen påfølgende sperrede dager med samme grunn og samme økter til perioder
 export function blockedPeriods(blocked) {
   const sorted = [...blocked].sort((a, b) => a.date.localeCompare(b.date));
   const out = [];
   for (const x of sorted) {
     const last = out[out.length - 1];
-    if (last && (last.reason || "") === (x.reason || "") && toISODate(addDays(parseISODate(last.to), 1)) === x.date) {
+    const slots = blockedSlotIds(x);
+    if (last && (last.reason || "") === (x.reason || "") && last.slots.join() === slots.join() &&
+        toISODate(addDays(parseISODate(last.to), 1)) === x.date) {
       last.to = x.date;
       last.dates.push(x.date);
     } else {
-      out.push({ from: x.date, to: x.date, reason: x.reason || "", dates: [x.date] });
+      out.push({ from: x.date, to: x.date, reason: x.reason || "", slots, dates: [x.date] });
     }
   }
   return out;
@@ -128,17 +158,14 @@ export function bookableFrom(date, now = new Date()) {
 // Økter gruppa trenger dekket hver dag. 16–20 er valgfri og foreslås ikke.
 export const CORE_SLOTS = ["am", "pm"];
 
-export function isWeekend(d) {
-  return d.getDay() === 0 || d.getDay() === 6;
-}
-
-// En dag er dekket når alle kjerneøktene (08–16) har minst én booking
-export function isDayCovered(date, bookings) {
-  return CORE_SLOTS.every((slot) => bookings.some((b) => b.date === date && b.slot === slot));
+// En dag er dekket når alle kjerneøktene (08–16) som ikke er sperret har minst én booking
+export function isDayCovered(date, bookings, blocked = []) {
+  const needed = CORE_SLOTS.filter((slot) => !blockedOn(date, blocked, slot));
+  return needed.length > 0 && needed.every((slot) => bookings.some((b) => b.date === date && b.slot === slot));
 }
 
 /**
- * De neste udekkede kjerneøktene (hverdager 08–12 / 12–16) i rekkefølge,
+ * De neste udekkede kjerneøktene (alle dager, også helg, 08–12 / 12–16) i rekkefølge,
  * Brukes til å foreslå hva neste i køen skal booke. Går forbi booking-vinduet
  * (f.eks. etter sperrede dager), så alle i køen får en dato – se bookableFrom.
  */
@@ -147,13 +174,11 @@ export const SUGGEST_DAYS_AHEAD = 60;
 export function suggestedSlots(bookings, count, now = new Date(), blocked = []) {
   const out = [];
   for (let i = 0; i <= SUGGEST_DAYS_AHEAD && out.length < count; i++) {
-    const d = addDays(now, i);
-    if (isWeekend(d)) continue;
-    const date = toISODate(d);
-    if (blockedOn(date, blocked)) continue;
+    const date = toISODate(addDays(now, i));
     for (const slot of CORE_SLOTS) {
       if (out.length >= count) break;
       if (slotStart({ date, slot }) <= now) continue;
+      if (blockedOn(date, blocked, slot)) continue;
       if (bookings.some((b) => b.date === date && b.slot === slot)) continue;
       out.push({ date, slot });
     }

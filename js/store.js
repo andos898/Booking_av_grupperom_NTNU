@@ -1,10 +1,16 @@
 // Lagring: Firestore når FIREBASE_CONFIG er satt, ellers localStorage.
 // Begge gir samme grensesnitt: subscribe(cb), addPerson(name), addBooking(b), deleteBooking(id), deletePerson(id),
-// blockDates(dates, reason), unblockDates(dates).
-import { FIREBASE_CONFIG } from "./config.js?v=18";
-import { validateBooking, normalizeRoom } from "./rules.js?v=18";
+// blockDates(dates, reason, slots), unblockDates(dates).
+import { FIREBASE_CONFIG } from "./config.js?v=19";
+import { validateBooking, normalizeRoom, blockedOn, mergeBlockSlots } from "./rules.js?v=19";
 
 const EMPTY = { people: [], bookings: [], blocked: [] };
+
+// En sperring per dato; nye økter legges til de som allerede er sperret den dagen
+function blockEntry(date, reason, slots, blocked) {
+  const existing = blockedOn(date, blocked);
+  return { date, reason: reason || existing?.reason || "", slots: mergeBlockSlots(existing, slots) };
+}
 
 const FIREBASE_VERSION = "10.12.2";
 
@@ -67,9 +73,10 @@ function localStore() {
       };
       save();
     },
-    async blockDates(dates, reason) {
+    async blockDates(dates, reason, slots) {
       const keep = state.blocked.filter((x) => !dates.includes(x.date));
-      state = { ...state, blocked: [...keep, ...dates.map((date) => ({ id: date, date, reason }))] };
+      const added = dates.map((date) => ({ id: date, ...blockEntry(date, reason, slots, state.blocked) }));
+      state = { ...state, blocked: [...keep, ...added] };
       save();
     },
     async unblockDates(dates) {
@@ -153,10 +160,10 @@ async function firestoreStore(config) {
       batch.delete(fs.doc(db, "people", id));
       await batch.commit();
     },
-    async blockDates(dates, reason) {
+    async blockDates(dates, reason, slots) {
       // Dok-id = dato, så samme dag kan ikke sperres to ganger
       const batch = fs.writeBatch(db);
-      dates.forEach((date) => batch.set(fs.doc(db, "blocked", date), { date, reason, createdAt: Date.now() }));
+      dates.forEach((date) => batch.set(fs.doc(db, "blocked", date), { ...blockEntry(date, reason, slots, state.blocked), createdAt: Date.now() }));
       await batch.commit();
     },
     async unblockDates(dates) {
