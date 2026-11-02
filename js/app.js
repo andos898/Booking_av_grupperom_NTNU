@@ -1,14 +1,14 @@
 // Versjon (v=19) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=19";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=19";
+import { createStore } from "./store.js?v=20";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=20";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotById, slotStart,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods, bookableFrom,
   BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
-} from "./rules.js?v=19";
+} from "./rules.js?v=20";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
