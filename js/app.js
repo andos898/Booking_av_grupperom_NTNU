@@ -1,4 +1,4 @@
-// Versjon (v=19) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=20) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
 import { createStore } from "./store.js?v=20";
 import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=20";
