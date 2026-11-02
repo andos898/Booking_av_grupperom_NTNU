@@ -6,7 +6,7 @@ export const SLOTS = [
   { id: "eve", label: "16:00–20:00", start: 16, end: 20 },
 ];
 
-export const MAX_ACTIVE_BOOKINGS = 4;
+export const MAX_ACTIVE_BOOKINGS = 8;
 export const MAX_DAYS_AHEAD = 14;
 
 export function slotById(id) {

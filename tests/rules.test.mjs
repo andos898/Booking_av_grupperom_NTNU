@@ -24,8 +24,8 @@ test("ikke økter som har startet", () => {
   assert.equal(validateBooking({ ...base, date: day(0), slot: "pm" }, [], now), null);
 });
 
-test("maks 4 aktive bookinger per person", () => {
-  const bookings = [1, 2, 3, 4].map((n) => ({ personId: "a", date: day(n + 1), slot: "pm", room: "R" + n }));
+test("maks 8 aktive bookinger per person", () => {
+  const bookings = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ personId: "a", date: day(n + 1), slot: "pm", room: "R" + n }));
   assert.match(validateBooking(base, bookings, now), /maks/);
   // passerte bookinger teller ikke
   const old = bookings.map((b) => ({ ...b, date: day(-5) }));
@@ -58,7 +58,7 @@ test("køen: færrest aktive, så lengst siden sist", () => {
 
 test("køen hopper over de som har maks", () => {
   const people = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
-  const bookings = [1, 2, 3, 4].map((n) => ({ personId: "a", date: day(n), slot: "pm", room: "R" }));
+  const bookings = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ personId: "a", date: day(n), slot: "pm", room: "R" }));
   assert.deepEqual(bookingQueue(people, bookings, now).map((x) => x.person.id), ["b"]);
 });
 

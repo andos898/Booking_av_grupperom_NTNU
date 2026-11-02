@@ -5,7 +5,7 @@ En enkel nettside for gruppa som viser **hvem som skal booke grupperom neste gan
 ## Regler
 
 - Bare 4-timers økter: **08:00–12:00**, **12:00–16:00** og **16:00–20:00**
-- Maks **4 aktive bookinger** per person (en booking slutter å telle når økta er ferdig)
+- Maks **8 aktive bookinger** per person (en booking slutter å telle når økta er ferdig)
 - Maks **14 dager** frem i tid
 - Samme rom kan ikke bookes to ganger i samme økt
 
@@ -49,7 +49,7 @@ GitHub Pages kan bare vise statiske filer. Uten noe mer oppsett lagres data derf
    ```
 5. Commit og push. Merket øverst skal da vise «Delt (Firebase)».
 
-> Firebase-nøkkelen i `config.js` er ikke hemmelig, men reglene over er åpne. Alle som har lenken kan legge inn og slette bookinger. Reglene (maks 4, 14 dager osv.) sjekkes i nettleseren, ikke på serveren.
+> Firebase-nøkkelen i `config.js` er ikke hemmelig, men reglene over er åpne. Alle som har lenken kan legge inn og slette bookinger. Reglene (maks 8, 14 dager osv.) sjekkes i nettleseren, ikke på serveren.
 
 ## Utvikling
 
