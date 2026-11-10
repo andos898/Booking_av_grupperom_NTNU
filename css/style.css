@@ -241,25 +241,73 @@ label.radio:has(input:checked) { color: var(--accent); font-weight: 600; }
 }
 
 .show-narrow { display: none; }
-/* Mobil: samme ukegrid som på PC, bare smalere. Detaljer vises når man trykker på en dag */
+.hour-axis { display: none; }
+/* Mobil: tiden går vannrett, én rad per dag, radene sveiset sammen til én tabell.
+   Felles klokkeslett øverst. Trykk på en dag åpner dagsoversikten. */
 @media (max-width: 700px) {
   .hide-narrow { display: none; }
   .show-narrow { display: inline; }
-  .weekdays, .calendar { gap: 3px; }
-  .weekdays span { font-size: 0.62rem; text-align: center; letter-spacing: 0; }
-  .day { border-radius: 6px; cursor: pointer; }
-  .day-label {
-    padding: 3px 2px !important; font-size: 0.68rem !important;
-    flex-direction: column; align-items: center; gap: 0; line-height: 1.2;
+  .weekdays { display: none; }
+  .calendar {
+    --label: 58px;
+    display: flex; flex-direction: column; gap: 0 !important;
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
   }
-  .day-label .done::before { font-size: 0.65rem; }
+  .day.pad, .day.out { display: none; }
+  .day {
+    flex-direction: row; min-height: 0; cursor: pointer;
+    border: 0; border-radius: 0; border-top: 1px solid var(--line); box-shadow: none;
+  }
+  .day:first-child { border-top: 0; }
+  .day.mon { border-top: 2px solid var(--muted); }
+  .day.today { box-shadow: inset 3px 0 0 var(--accent); border-color: var(--line); }
+  .day.today.mon { border-top-color: var(--muted); }
+  .day:active { background: var(--accent-soft); }
+  .day-label {
+    flex: none; width: var(--label);
+    flex-direction: column; justify-content: center; align-items: flex-start; gap: 0;
+    padding: 4px 6px !important; font-size: 0.74rem !important; line-height: 1.2;
+    background: transparent !important; border-bottom: 0 !important;
+    border-right: 1px solid var(--line);
+  }
+  .day-label .dname { display: inline; order: -1; text-transform: capitalize; }
+  .day-label .done::before { font-size: 0.7rem; }
   .day-label .blocked-tag { font-size: 0; }
-  .day-label .blocked-tag::before { content: "⊘"; font-size: 0.75rem; }
-  .day-slots { --gutter: 0px; height: calc(var(--hours, 12) * 18px); }
-  .slot-time, .chip .icon-btn, .chip .time, .chip .room { display: none !important; }
+  .day-label .blocked-tag::before { content: "Sperret"; font-size: 0.62rem; }
+  .day-slots {
+    --gutter: 0px;
+    flex: 1; min-width: 0;
+    height: calc(var(--lanes) * 30px + 6px);
+    background: repeating-linear-gradient(to right, color-mix(in srgb, var(--line) 55%, transparent) 0 1px, transparent 1px var(--hour, 8.333%));
+  }
+  .slot {
+    top: 0; bottom: 0; height: auto; right: auto;
+    left: calc(var(--s) * 1%); width: calc(var(--e) * 1%);
+    border-top: 0; border-left: 1px solid var(--line);
+  }
+  .slot-time, .chip .icon-btn, .chip .time { display: none !important; }
   .slot.open:active { background: transparent; }
-  .chip { padding: 1px 2px; border-left-width: 2px; border-radius: 3px; font-size: 0.56rem; }
-  .day:active { box-shadow: inset 0 0 0 2px var(--accent); }
+  .chip {
+    left: calc(var(--s) * 1% + 1px); width: calc(var(--e) * 1% - 2px);
+    top: calc(3px + (100% - 6px) * var(--lane) / var(--lanes));
+    height: calc((100% - 6px) / var(--lanes) - 2px);
+    padding: 1px 4px; border-left-width: 3px; border-radius: 4px;
+    font-size: 0.66rem; align-items: center;
+  }
+  .chip .txt { display: flex; flex-direction: column; justify-content: center; }
+  .chip .room { font-size: 0.6rem; opacity: 0.8; }
+  .chip.short .room { display: block; }
+  .now-line { top: 0; bottom: 0; height: auto; width: 2px; left: calc(var(--s) * 1%); right: auto; }
+  .now-line::before { left: -3px; top: -3px; }
+
+  .hour-axis { display: block; padding-left: calc(58px + 1px); margin: 4px 0 4px; }
+  .ha-track { position: relative; height: 14px; margin-right: 1px; }
+  .ha-track span {
+    position: absolute; left: calc(var(--s) * 1%); transform: translateX(-50%);
+    font-size: 0.64rem; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .ha-track span:first-child { transform: none; }
+  .ha-track span:last-child { transform: translateX(-100%); }
 }
 
 /* Dagsoversikt (mobil) */

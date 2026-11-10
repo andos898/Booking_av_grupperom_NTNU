@@ -1,7 +1,7 @@
-// Versjon (v=24) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=25) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=24";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=24";
+import { createStore } from "./store.js?v=25";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=25";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotStart, CUSTOM_SLOT, bookingLabel, bookingRange,
@@ -9,7 +9,7 @@ import {
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, CORE_SLOTS, blockedOn, dateRange, blockedPeriods, bookableFrom,
   BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
-} from "./rules.js?v=24";
+} from "./rules.js?v=25";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -240,6 +240,10 @@ function renderCalendar() {
   // Timestreker hver time (t0 er alltid en hel time)
   cal.style.setProperty("--hour", `${(6000 / (t1 - t0)).toFixed(4)}%`);
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  // Felles klokkeslett-akse (brukes i den vannrette mobilvisningen)
+  let axis = "";
+  for (let m = t0; m <= t1; m += 120) axis += `<span style="--s:${pct(m)}">${String(m / 60).padStart(2, "0")}</span>`;
+  $("hour-axis").innerHTML = `<div class="ha-track">${axis}</div>`;
 
   let html = "";
   for (let d = start; d <= end; d = addDays(d, 1)) {
@@ -258,7 +262,7 @@ function renderCalendar() {
       laneEnds[lane] = it.r.end;
       it.lane = lane;
     }
-    const cls = ["day", covered && "covered", fullBlock && "blocked", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
+    const cls = ["day", covered && "covered", fullBlock && "blocked", wd >= 5 && "weekend", wd === 0 && "mon", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
     html += `<div class="${cls}" data-day="${iso}">
       <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}${block ? `<span class="blocked-tag" title="${esc(block.reason || "Sperret")}">Sperret${fullBlock ? "" : ` ${blockPartLabel(block)}`}</span>` : ""}</div>
       <div class="day-slots" style="--lanes:${Math.max(1, laneEnds.length)}">`;
