@@ -240,31 +240,14 @@ label.radio:has(input:checked) { color: var(--accent); font-weight: 600; }
   width: 8px; height: 8px; border-radius: 50%; background: var(--danger);
 }
 
-/* Mobil: én dag per rad, tidsaksen går vannrett */
+/* Mobil: samme ukegrid som på PC, men kalenderen scroller sideveis i stedet for å klemmes */
 @media (max-width: 700px) {
-  .weekdays { display: none; }
-  .calendar { grid-template-columns: 1fr; }
-  .day.pad, .day.out { display: none; }
-  .day { min-height: 0; }
-  .day-label .dname { display: inline; }
-  .day-slots {
-    --gutter: 16px;
-    height: calc(var(--gutter) + var(--lanes) * 52px);
-    background: repeating-linear-gradient(to right, color-mix(in srgb, var(--line) 55%, transparent) 0 1px, transparent 1px var(--hour, 8.333%));
+  .cal-scroll {
+    overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+    margin: 0 -14px; padding: 0 14px 6px; scroll-padding: 0 14px;
   }
-  .slot {
-    top: 0; bottom: 0; height: auto;
-    left: calc(var(--s) * 1%); right: auto; width: calc(var(--e) * 1%);
-    border-top: 0; border-left: 1px solid var(--line);
-  }
-  .chip {
-    left: calc(var(--s) * 1% + 1px); width: calc(var(--e) * 1% - 2px);
-    top: calc(var(--gutter) + (100% - var(--gutter)) * var(--lane) / var(--lanes) + 1px);
-    height: calc((100% - var(--gutter)) / var(--lanes) - 3px);
-  }
-  .chip.short .room { display: block; }
-  .now-line { top: 0; bottom: 0; height: auto; width: 2px; left: calc(var(--s) * 1%); right: auto; }
-  .now-line::before { left: -3px; top: -3px; }
+  .cal-scroll .weekdays, .cal-scroll .calendar { min-width: 690px; gap: 6px; }
+  .day-slots { --gutter: 22px; }
 }
 
 /* Telefon */
@@ -361,7 +344,7 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
 .day-label .done { font-size: 0.68rem; font-weight: 600; color: #1f8a4c; white-space: nowrap; }
 @media (prefers-color-scheme: dark) { .day-label .done { color: #6fd39a; } }
 .day.covered .slot.eve { opacity: 0.55; }
-@media (min-width: 701px) { .day-label .done { font-size: 0; } .day-label .done::before { content: "✓"; font-size: 0.75rem; } }
+.day-label .done { font-size: 0; } .day-label .done::before { content: "✓"; font-size: 0.75rem; }
 
 /* Sperrede dager */
 .admin-card h3 { margin: 4px 0; font-size: 0.95rem; }
@@ -376,7 +359,6 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
 .day.blocked .slot { opacity: 0.5; }
 .slot.blocked-slot { background: repeating-linear-gradient(135deg, var(--past) 0 8px, transparent 8px 16px); opacity: 0.5; }
 .blocked-tag { font-size: 0.68rem; font-weight: 700; color: var(--danger); white-space: nowrap; }
-@media (max-width: 700px) { .day-label .blocked-tag { margin-left: auto; } }
 
 /* Telefon: tydeligere skille mellom delene */
 @media (max-width: 900px) {
@@ -403,10 +385,6 @@ dialog::backdrop { background: rgba(10, 15, 25, 0.45); }
 @media (max-width: 900px) and (prefers-color-scheme: dark) {
   body { background: #0a0e14; }
   .card { box-shadow: none; }
-}
-@media (max-width: 700px) {
-  .day-label { justify-content: flex-start; gap: 6px; }
-  .day-label .done { margin-left: auto; }
 }
 
 /* Forslag lenger frem enn booking-vinduet */

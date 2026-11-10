@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=22" />
+  <link rel="stylesheet" href="css/style.css?v=23" />
 </head>
 <body>
   <header class="topbar">
@@ -117,10 +117,12 @@
         <h2>Kalender</h2>
         <p class="muted small">Klikk på en ledig økt for å booke den.</p>
       </div>
-      <div class="weekdays" aria-hidden="true">
-        <span>Man</span><span>Tir</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lør</span><span>Søn</span>
+      <div class="cal-scroll" id="cal-scroll">
+        <div class="weekdays" aria-hidden="true">
+          <span>Man</span><span>Tir</span><span>Ons</span><span>Tor</span><span>Fre</span><span>Lør</span><span>Søn</span>
+        </div>
+        <div id="calendar" class="calendar"></div>
       </div>
-      <div id="calendar" class="calendar"></div>
     </section>
   </main>
 
@@ -140,6 +142,6 @@
 
   <div id="toast" class="toast" role="status"></div>
 
-  <script type="module" src="js/app.js?v=22"></script>
+  <script type="module" src="js/app.js?v=23"></script>
 </body>
 </html>

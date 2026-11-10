@@ -1,7 +1,7 @@
-// Versjon (v=22) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=23) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=22";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=22";
+import { createStore } from "./store.js?v=23";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=23";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotStart, CUSTOM_SLOT, bookingLabel, bookingRange,
@@ -9,7 +9,7 @@ import {
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, CORE_SLOTS, blockedOn, dateRange, blockedPeriods, bookableFrom,
   BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
-} from "./rules.js?v=22";
+} from "./rules.js?v=23";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -282,6 +282,18 @@ function renderCalendar() {
     html += `</div></div>`;
   }
   $("calendar").innerHTML = html;
+  scrollCalendarToToday();
+}
+
+// Mobil: kalenderen scroller sideveis – vis dagens kolonne første gang den tegnes
+let calScrolled = false;
+function scrollCalendarToToday() {
+  if (calScrolled) return;
+  const wrap = $("cal-scroll");
+  const todayEl = wrap?.querySelector(".day.today");
+  if (!wrap || !todayEl || wrap.scrollWidth <= wrap.clientWidth) return;
+  calScrolled = true;
+  wrap.scrollLeft = Math.max(0, todayEl.offsetLeft - wrap.offsetLeft - 8);
 }
 
 function renderRooms() {
