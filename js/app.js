@@ -1,7 +1,7 @@
-// Versjon (v=23) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=24) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=23";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=23";
+import { createStore } from "./store.js?v=24";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=24";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotStart, CUSTOM_SLOT, bookingLabel, bookingRange,
@@ -9,7 +9,7 @@ import {
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, CORE_SLOTS, blockedOn, dateRange, blockedPeriods, bookableFrom,
   BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
-} from "./rules.js?v=23";
+} from "./rules.js?v=24";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -259,7 +259,7 @@ function renderCalendar() {
       it.lane = lane;
     }
     const cls = ["day", covered && "covered", fullBlock && "blocked", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
-    html += `<div class="${cls}">
+    html += `<div class="${cls}" data-day="${iso}">
       <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}${block ? `<span class="blocked-tag" title="${esc(block.reason || "Sperret")}">Sperret${fullBlock ? "" : ` ${blockPartLabel(block)}`}</span>` : ""}</div>
       <div class="day-slots" style="--lanes:${Math.max(1, laneEnds.length)}">`;
     // Øktene er klikkbare felt i bakgrunnen
@@ -282,18 +282,71 @@ function renderCalendar() {
     html += `</div></div>`;
   }
   $("calendar").innerHTML = html;
-  scrollCalendarToToday();
+  if ($("day-dialog").open) renderDayDialog();
 }
 
-// Mobil: kalenderen scroller sideveis – vis dagens kolonne første gang den tegnes
-let calScrolled = false;
-function scrollCalendarToToday() {
-  if (calScrolled) return;
-  const wrap = $("cal-scroll");
-  const todayEl = wrap?.querySelector(".day.today");
-  if (!wrap || !todayEl || wrap.scrollWidth <= wrap.clientWidth) return;
-  calScrolled = true;
-  wrap.scrollLeft = Math.max(0, todayEl.offsetLeft - wrap.offsetLeft - 8);
+// Mobil: kolonnene er for smale til detaljer – trykk på en dag åpner en oversikt
+const isNarrow = () => window.matchMedia("(max-width: 700px)").matches;
+let dialogDay = null;
+
+function openDayDialog(iso) {
+  dialogDay = iso;
+  renderDayDialog();
+  const dlg = $("day-dialog");
+  if (!dlg.open) dlg.showModal();
+}
+
+function renderDayDialog() {
+  const iso = dialogDay;
+  const now = new Date();
+  const d = parseISODate(iso);
+  const today = parseISODate(toISODate(now));
+  const inRange = d >= today && d <= addDays(today, MAX_DAYS_AHEAD);
+  const block = inRange && blockedOn(iso, state.blocked);
+  const fullBlock = block && isFullDayBlock(block);
+  const title = new Intl.DateTimeFormat("nb-NO", { weekday: "long", day: "numeric", month: "long" }).format(d);
+  $("day-title").textContent = title.charAt(0).toUpperCase() + title.slice(1);
+
+  const items = state.bookings
+    .filter((b) => b.date === iso)
+    .map((b) => ({ b, r: bookingRange(b) }))
+    .filter((x) => x.r)
+    .sort((x, y) => x.r.start - y.r.start || x.b.room.localeCompare(y.b.room, "nb"));
+
+  let html = "";
+  if (block) html += `<p class="day-blocked">Sperret${fullBlock ? "" : ` ${esc(blockPartLabel(block))}`}${block.reason ? ` – ${esc(block.reason)}` : ""}</p>`;
+  html += items.length
+    ? `<ul class="day-list">${items.map(({ b }) => {
+        const mine = b.personId === currentUserId;
+        const canDelete = mine && isActive(b, now);
+        return `<li class="${isActive(b, now) ? "" : "past"}" style="--h:${hue(b.personId)}">
+          <span class="dl-time">${esc(bookingLabel(b))}</span>
+          <span class="dl-who"><b>${esc(personName(b.personId))}${mine ? " (deg)" : ""}</b><span>${esc(b.room)}</span></span>
+          ${canDelete ? `<button class="icon-btn" data-delete="${esc(b.id)}" aria-label="Slett booking">✕</button>` : ""}</li>`;
+      }).join("")}</ul>`
+    : `<p class="muted small">Ingen bookinger denne dagen.</p>`;
+
+  const open = inRange
+    ? SLOTS.filter((s) => !(block && blockedSlotIds(block).includes(s.id)) && slotStart({ date: iso, slot: s.id }) > now)
+    : [];
+  if (open.length) {
+    html += `<h3 class="day-sub">Book denne dagen</h3><div class="day-slots-pick">${open.map((s) => {
+      const free = !isSlotCovered(iso, s.id, state.bookings);
+      return `<button type="button" class="btn ${free ? "primary" : "ghost"}" data-pick-date="${iso}" data-pick-slot="${s.id}">${String(s.start).padStart(2, "0")}–${String(s.end).padStart(2, "0")}${free ? "" : " (har booking)"}</button>`;
+    }).join("")}</div>`;
+  }
+  $("day-body").innerHTML = html;
+}
+
+// Fyll skjemaet med valgt dag/økt og hopp dit
+function pickSlot(date, slot) {
+  $("f-date").value = date;
+  setFormSlot(slot);
+  formTouched = true;
+  renderFormHint();
+  $("form-error").textContent = currentUserId ? "" : "Velg hvem du er før du booker.";
+  $("booking-form").scrollIntoView({ behavior: "smooth", block: "center" });
+  $("f-room").focus({ preventScroll: true });
 }
 
 function renderRooms() {
@@ -349,15 +402,24 @@ function setupForm() {
 
   $("calendar").addEventListener("click", (e) => {
     if (e.target.closest("[data-delete]")) return;
+    if (isNarrow()) {
+      const day = e.target.closest(".day[data-day]");
+      if (day) openDayDialog(day.dataset.day);
+      return;
+    }
     const slot = e.target.closest(".slot.open");
     if (!slot) return;
-    dateInput.value = slot.dataset.date;
-    setFormSlot(slot.dataset.slot);
-    formTouched = true;
-    renderFormHint();
-    $("form-error").textContent = currentUserId ? "" : "Velg hvem du er før du booker.";
-    $("booking-form").scrollIntoView({ behavior: "smooth", block: "center" });
-    $("f-room").focus({ preventScroll: true });
+    pickSlot(slot.dataset.date, slot.dataset.slot);
+  });
+
+  const dayDialog = $("day-dialog");
+  $("day-close").addEventListener("click", () => dayDialog.close());
+  dayDialog.addEventListener("click", (e) => {
+    if (e.target === dayDialog) return dayDialog.close(); // trykk utenfor lukker
+    const pick = e.target.closest("[data-pick-slot]");
+    if (!pick) return;
+    dayDialog.close();
+    pickSlot(pick.dataset.pickDate, pick.dataset.pickSlot);
   });
 
   document.addEventListener("click", async (e) => {
