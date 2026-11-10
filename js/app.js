@@ -1,15 +1,15 @@
-// Versjon (v=21) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=22) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=21";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=21";
+import { createStore } from "./store.js?v=22";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=22";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotStart, CUSTOM_SLOT, bookingLabel, bookingRange,
   overlapsSlots, blockedFor, isSlotCovered,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
-  suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods, bookableFrom,
+  suggestedSlots, isDayCovered, CORE_SLOTS, blockedOn, dateRange, blockedPeriods, bookableFrom,
   BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
-} from "./rules.js?v=21";
+} from "./rules.js?v=22";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -49,15 +49,6 @@ function formTime() {
 function setFormSlot(slot) {
   document.querySelector(`input[name="slot"][value="${slot}"]`).checked = true;
   $("custom-time").hidden = slot !== CUSTOM_SLOT;
-}
-
-// Øktene i kalenderen en booking vises i (egendefinert tid: alle den overlapper)
-function slotIdsFor(b) {
-  if (b.slot !== CUSTOM_SLOT) return [b.slot];
-  const r = bookingRange(b);
-  if (!r) return [];
-  const ids = SLOTS.filter((s) => r.start < s.end * 60 && r.end > s.start * 60).map((s) => s.id);
-  return ids.length ? ids : [r.end <= SLOTS[0].start * 60 ? SLOTS[0].id : SLOTS[SLOTS.length - 1].id];
 }
 
 // Køen med forslag: nr. 1 får første udekkede økt, nr. 2 den neste osv.
@@ -228,14 +219,27 @@ function renderCalendar() {
   const end = addDays(last, 6 - ((last.getDay() + 6) % 7)); // søndag siste uke
   const todayISO = toISODate(today);
 
-  const byKey = new Map();
+  // Bookinger per dag, og tidsaksen: 08–20, utvidet til hele timer hvis noen booker utenfor
+  const byDay = new Map();
+  let t0 = SLOTS[0].start * 60;
+  let t1 = SLOTS[SLOTS.length - 1].end * 60;
+  const startISO = toISODate(start);
+  const endISO = toISODate(end);
   for (const b of state.bookings) {
-    for (const id of slotIdsFor(b)) {
-      const k = `${b.date}|${id}`;
-      if (!byKey.has(k)) byKey.set(k, []);
-      byKey.get(k).push(b);
-    }
+    const r = bookingRange(b);
+    if (!r || b.date < startISO || b.date > endISO) continue;
+    if (!byDay.has(b.date)) byDay.set(b.date, []);
+    byDay.get(b.date).push({ b, r });
+    t0 = Math.min(t0, Math.floor(r.start / 60) * 60);
+    t1 = Math.max(t1, Math.ceil(r.end / 60) * 60);
   }
+  const pct = (min) => (((min - t0) / (t1 - t0)) * 100).toFixed(3);
+  const span = (a, z) => `--s:${pct(a)};--e:${(((z - a) / (t1 - t0)) * 100).toFixed(3)}`;
+  const cal = $("calendar");
+  cal.style.setProperty("--hours", (t1 - t0) / 60);
+  // Timestreker hver time (t0 er alltid en hel time)
+  cal.style.setProperty("--hour", `${(6000 / (t1 - t0)).toFixed(4)}%`);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
 
   let html = "";
   for (let d = start; d <= end; d = addDays(d, 1)) {
@@ -245,25 +249,36 @@ function renderCalendar() {
     const block = inRange && blockedOn(iso, state.blocked);
     const fullBlock = block && isFullDayBlock(block);
     const covered = inRange && !fullBlock && isDayCovered(iso, state.bookings, state.blocked);
+    // Bookingene som blokker etter klokkeslett; overlappende legges i hver sin kolonne
+    const items = (byDay.get(iso) || []).sort((x, y) => x.r.start - y.r.start || x.b.room.localeCompare(y.b.room, "nb"));
+    const laneEnds = [];
+    for (const it of items) {
+      let lane = laneEnds.findIndex((e) => e <= it.r.start);
+      if (lane < 0) lane = laneEnds.length;
+      laneEnds[lane] = it.r.end;
+      it.lane = lane;
+    }
     const cls = ["day", covered && "covered", fullBlock && "blocked", wd >= 5 && "weekend", !inRange && "out", d < today && "pad", iso === todayISO && "today"].filter(Boolean).join(" ");
     html += `<div class="${cls}">
       <div class="day-label"><span>${d.getDate()}.${d.getMonth() + 1}</span><span class="dname">${esc(shortFmt.format(d))}</span>${covered ? `<span class="done" title="08–16 er dekket">✓ dekket</span>` : ""}${block ? `<span class="blocked-tag" title="${esc(block.reason || "Sperret")}">Sperret${fullBlock ? "" : ` ${blockPartLabel(block)}`}</span>` : ""}</div>
-      <div class="day-slots">`;
+      <div class="day-slots" style="--lanes:${Math.max(1, laneEnds.length)}">`;
+    // Øktene er klikkbare felt i bakgrunnen
     for (const s of SLOTS) {
-      const list = (byKey.get(`${iso}|${s.id}`) || []).sort((a, b) => a.room.localeCompare(b.room, "nb"));
       const slotBlocked = block && blockedSlotIds(block).includes(s.id);
       const open = inRange && !slotBlocked && slotStart({ date: iso, slot: s.id }) > now;
-      html += `<div class="slot ${open ? "open" : ""} ${slotBlocked && !fullBlock ? "blocked-slot" : ""}" ${open ? `data-date="${iso}" data-slot="${s.id}"` : ""}>
-        <span class="slot-time">${s.label}</span>
-        ${list.map((b) => {
-          const mine = b.personId === currentUserId;
-          const canDelete = mine && isActive(b, now);
-          return `<div class="chip ${mine ? "mine-chip" : ""}" style="--h:${hue(b.personId)}" title="${esc(personName(b.personId))} – ${esc(b.room)} (${esc(bookingLabel(b))})">
-            <span class="txt"><b>${esc(personName(b.personId))}</b><span class="sep"> · </span><span class="room">${esc(b.room)}</span>${b.slot === CUSTOM_SLOT ? `<span class="sep"> · </span><span class="time">${esc(bookingLabel(b))}</span>` : ""}</span>
-            ${canDelete ? `<button class="icon-btn" data-delete="${esc(b.id)}" aria-label="Slett booking">✕</button>` : ""}</div>`;
-        }).join("")}
-      </div>`;
+      const free = !isSlotCovered(iso, s.id, state.bookings);
+      html += `<div class="slot ${s.id} ${open ? "open" : ""} ${open && free && CORE_SLOTS.includes(s.id) ? "free" : ""} ${slotBlocked && !fullBlock ? "blocked-slot" : ""}" style="${span(s.start * 60, s.end * 60)}" ${open ? `data-date="${iso}" data-slot="${s.id}"` : ""}>
+        <span class="slot-time">${String(s.start).padStart(2, "0")}</span></div>`;
     }
+    for (const { b, r, lane } of items) {
+      const mine = b.personId === currentUserId;
+      const canDelete = mine && isActive(b, now);
+      const short = r.end - r.start < 120;
+      html += `<div class="chip ${mine ? "mine-chip" : ""} ${short ? "short" : ""} ${isActive(b, now) ? "" : "past"}" style="--h:${hue(b.personId)};${span(r.start, r.end)};--lane:${lane}" title="${esc(bookingLabel(b))} · ${esc(personName(b.personId))} – ${esc(b.room)}">
+        <span class="txt"><span class="time">${esc(bookingLabel(b))}</span><b>${esc(personName(b.personId))}</b><span class="room">${esc(b.room)}</span></span>
+        ${canDelete ? `<button class="icon-btn" data-delete="${esc(b.id)}" aria-label="Slett booking">✕</button>` : ""}</div>`;
+    }
+    if (iso === todayISO && nowMin > t0 && nowMin < t1) html += `<div class="now-line" style="--s:${pct(nowMin)}" title="Nå"></div>`;
     html += `</div></div>`;
   }
   $("calendar").innerHTML = html;
