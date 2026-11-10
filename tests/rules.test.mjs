@@ -10,8 +10,8 @@ test("gyldig booking godtas", () => {
   assert.equal(validateBooking(base, [], now), null);
 });
 
-test("kun 08-12 og 12-16", () => {
-  assert.match(validateBooking({ ...base, slot: "kveld" }, [], now), /4-timers/);
+test("ukjent økt avvises", () => {
+  assert.match(validateBooking({ ...base, slot: "kveld" }, [], now), /økt eller en egen tid/);
 });
 
 test("maks 14 dager frem", () => {
@@ -128,4 +128,67 @@ test("forslag går forbi booking-vinduet når dagene er sperret", () => {
   ]);
   assert.equal(bookableFrom(day(14), now), null);
   assert.equal(bookableFrom(day(15), now), day(1));
+});
+
+// ---------- Egendefinert tid ----------
+const custom = (start, end, extra = {}) => ({ ...base, slot: "custom", start, end, ...extra });
+
+test("egendefinert tid godtas", () => {
+  assert.equal(validateBooking(custom("09:30", "13:15"), [], now), null);
+});
+
+test("egendefinert tid: slutt etter start, maks 4 timer", () => {
+  assert.match(validateBooking(custom("13:00", "12:00"), [], now), /gyldig tidsrom/);
+  assert.match(validateBooking(custom("ab", "12:00"), [], now), /gyldig tidsrom/);
+  assert.match(validateBooking(custom("08:00", "12:01"), [], now), /maks 4 timer/);
+});
+
+test("egendefinert tid som har startet avvises", () => {
+  assert.match(validateBooking(custom("08:30", "10:00", { date: day(0) }), [], now), /startet/);
+  assert.equal(validateBooking(custom("09:30", "10:00", { date: day(0) }), [], now), null);
+});
+
+test("overlappende tid i samme rom blokkeres, tilstøtende er ok", () => {
+  const bookings = [{ personId: "b", date: base.date, slot: "am", room: "S21" }];
+  assert.match(validateBooking(custom("11:00", "13:00"), bookings, now), /allerede booket/);
+  assert.equal(validateBooking(custom("12:00", "14:00"), bookings, now), null);
+  assert.equal(validateBooking(custom("11:00", "13:00", { room: "S22" }), bookings, now), null);
+  // standardøkt mot egendefinert booking
+  const c = [{ personId: "b", date: base.date, slot: "custom", start: "10:00", end: "11:00", room: "S21" }];
+  assert.match(validateBooking(base, c, now), /allerede booket/);
+});
+
+test("samme person kan ikke ha overlappende bookinger", () => {
+  const bookings = [{ personId: "a", date: base.date, slot: "am", room: "S99" }];
+  assert.match(validateBooking(custom("10:00", "12:30"), bookings, now), /overlapper/);
+});
+
+test("sperring gjelder egendefinert tid", () => {
+  const am = [{ date: base.date, slots: BLOCK_PARTS.am }];
+  assert.match(validateBooking(custom("07:00", "09:00"), [], now, am), /sperret/);
+  assert.equal(validateBooking(custom("12:00", "15:00"), [], now, am), null);
+  const pm = [{ date: base.date, slots: BLOCK_PARTS.pm }];
+  assert.match(validateBooking(custom("19:00", "21:00"), [], now, pm), /sperret/);
+  const all = [{ date: base.date }];
+  assert.match(validateBooking(custom("06:00", "07:00"), [], now, all), /sperret/);
+});
+
+test("dekning teller sammen egendefinerte tider", () => {
+  const d = base.date;
+  const parts = [
+    { date: d, slot: "custom", start: "08:00", end: "10:30" },
+    { date: d, slot: "custom", start: "10:00", end: "14:00" },
+  ];
+  assert.equal(isDayCovered(d, parts, []), false);
+  assert.equal(isDayCovered(d, [...parts, { date: d, slot: "custom", start: "14:00", end: "16:00" }], []), true);
+  // hull 14:00–14:30 => ikke dekket, og 12–16 foreslås fortsatt
+  const gap = [...parts, { date: d, slot: "custom", start: "14:30", end: "16:00" }];
+  assert.equal(isDayCovered(d, gap, []), false);
+  assert.deepEqual(suggestedSlots(gap, 1, now)[0], { date: day(0), slot: "pm" });
+});
+
+test("isActive bruker egendefinert sluttid", () => {
+  const b = { date: day(0), slot: "custom", start: "08:00", end: "09:30" };
+  assert.equal(isActive(b, now), true);
+  assert.equal(isActive(b, new Date(2026, 9, 29, 9, 30)), false);
 });

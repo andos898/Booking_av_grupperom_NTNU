@@ -144,6 +144,10 @@ label.radio {
 }
 label.radio:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 label.radio { justify-content: center; white-space: nowrap; position: relative; }
+label.radio.wide { grid-column: 1 / -1; }
+#custom-time { margin-bottom: 12px; }
+#custom-time[hidden] { display: none; }
+.chip .time { font-variant-numeric: tabular-nums; opacity: 0.8; }
 label.radio input { position: absolute; opacity: 0; pointer-events: none; }
 label.radio:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
 label.radio:has(input:checked) { color: var(--accent); font-weight: 600; }

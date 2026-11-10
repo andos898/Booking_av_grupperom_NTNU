@@ -1,14 +1,15 @@
-// Versjon (v=20) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=21) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=20";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=20";
+import { createStore } from "./store.js?v=21";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=21";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
-  toISODate, parseISODate, addDays, slotById, slotStart,
+  toISODate, parseISODate, addDays, slotStart, CUSTOM_SLOT, bookingLabel, bookingRange,
+  overlapsSlots, blockedFor, isSlotCovered,
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, blockedOn, dateRange, blockedPeriods, bookableFrom,
   BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
-} from "./rules.js?v=20";
+} from "./rules.js?v=21";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -37,7 +38,27 @@ function hue(str) {
 const dayFmt = new Intl.DateTimeFormat("nb-NO", { weekday: "short", day: "numeric", month: "short" });
 const shortFmt = new Intl.DateTimeFormat("nb-NO", { weekday: "short" });
 
-const slotText = (x) => `${dayFmt.format(parseISODate(x.date))} · ${slotById(x.slot).label}`;
+const slotText = (x) => `${dayFmt.format(parseISODate(x.date))} · ${bookingLabel(x)}`;
+
+// Valgt tid i skjemaet: { slot } eller { slot: "custom", start, end }
+function formTime() {
+  const slot = new FormData($("booking-form")).get("slot");
+  return slot === CUSTOM_SLOT ? { slot, start: $("f-start").value, end: $("f-end").value } : { slot };
+}
+
+function setFormSlot(slot) {
+  document.querySelector(`input[name="slot"][value="${slot}"]`).checked = true;
+  $("custom-time").hidden = slot !== CUSTOM_SLOT;
+}
+
+// Øktene i kalenderen en booking vises i (egendefinert tid: alle den overlapper)
+function slotIdsFor(b) {
+  if (b.slot !== CUSTOM_SLOT) return [b.slot];
+  const r = bookingRange(b);
+  if (!r) return [];
+  const ids = SLOTS.filter((s) => r.start < s.end * 60 && r.end > s.start * 60).map((s) => s.id);
+  return ids.length ? ids : [r.end <= SLOTS[0].start * 60 ? SLOTS[0].id : SLOTS[SLOTS.length - 1].id];
+}
 
 // Køen med forslag: nr. 1 får første udekkede økt, nr. 2 den neste osv.
 function queueWithSuggestions(now = new Date()) {
@@ -153,15 +174,17 @@ function prefillForm() {
   const pick = [mine, next].find((x) => x && !bookableFrom(x.date)) || next;
   if (!pick) return;
   $("f-date").value = pick.date;
-  document.querySelector(`input[name="slot"][value="${pick.slot}"]`).checked = true;
+  setFormSlot(pick.slot);
 }
 
 function renderFormHint() {
   const date = $("f-date").value;
-  const slot = new FormData($("booking-form")).get("slot");
+  const time = formTime();
+  const slot = time.slot;
+  const range = bookingRange(time);
   const next = suggestedSlots(state.bookings, 1, new Date(), state.blocked)[0];
   const useNext = next && !bookableFrom(next.date) ? ` <button type="button" class="link" data-suggest="${next.date}|${next.slot}">Book heller ${esc(slotText(next))}</button>` : "";
-  const block = date && blockedOn(date, state.blocked, slot);
+  const block = date && range && blockedFor({ date, ...time }, state.blocked);
   const opens = date && bookableFrom(date);
   let msg = "";
   if (opens) {
@@ -170,10 +193,12 @@ function renderFormHint() {
     msg = `Denne ${isFullDayBlock(block) ? "dagen" : "økta"} er sperret${block.reason ? ` (${esc(block.reason)})` : ""}.${useNext}`;
   } else if (date && isDayCovered(date, state.bookings, state.blocked)) {
     msg = `08–16 er allerede dekket denne dagen – 16–20 trengs ikke.${useNext}`;
-  } else if (slot === "eve") {
+  } else if (slot === "eve" || (range && range.start >= 16 * 60)) {
     msg = `16–20 trengs vanligvis ikke – prioriter 08–12 og 12–16.${useNext}`;
-  } else if (date && state.bookings.some((b) => b.date === date && b.slot === slot)) {
+  } else if (date && slot !== CUSTOM_SLOT && isSlotCovered(date, slot, state.bookings)) {
     msg = `Denne økta er allerede booket av noen.${useNext}`;
+  } else if (date && range && state.bookings.some((b) => b.date === date && bookingRange(b)?.start < range.end && range.start < bookingRange(b)?.end)) {
+    msg = `Noen har allerede booket (deler av) dette tidsrommet – sjekk at det er et annet rom.`;
   }
   $("form-hint").innerHTML = msg;
   $("form-hint").hidden = !msg;
@@ -189,7 +214,7 @@ function renderMine() {
   }
   $("my-bookings").innerHTML = mine.length
     ? mine.map((b) => `<li>
-        <span class="when"><b>${esc(dayFmt.format(parseISODate(b.date)))} · ${slotById(b.slot).label}</b>
+        <span class="when"><b>${esc(dayFmt.format(parseISODate(b.date)))} · ${esc(bookingLabel(b))}</b>
         <span class="muted">${esc(b.room)}</span></span>
         <button class="icon-btn" data-delete="${esc(b.id)}" title="Slett booking" aria-label="Slett booking">✕</button></li>`).join("")
     : `<li class="muted">Ingen aktive bookinger.</li>`;
@@ -205,9 +230,11 @@ function renderCalendar() {
 
   const byKey = new Map();
   for (const b of state.bookings) {
-    const k = `${b.date}|${b.slot}`;
-    if (!byKey.has(k)) byKey.set(k, []);
-    byKey.get(k).push(b);
+    for (const id of slotIdsFor(b)) {
+      const k = `${b.date}|${id}`;
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(b);
+    }
   }
 
   let html = "";
@@ -231,8 +258,8 @@ function renderCalendar() {
         ${list.map((b) => {
           const mine = b.personId === currentUserId;
           const canDelete = mine && isActive(b, now);
-          return `<div class="chip ${mine ? "mine-chip" : ""}" style="--h:${hue(b.personId)}" title="${esc(personName(b.personId))} – ${esc(b.room)}">
-            <span class="txt"><b>${esc(personName(b.personId))}</b><span class="sep"> · </span><span class="room">${esc(b.room)}</span></span>
+          return `<div class="chip ${mine ? "mine-chip" : ""}" style="--h:${hue(b.personId)}" title="${esc(personName(b.personId))} – ${esc(b.room)} (${esc(bookingLabel(b))})">
+            <span class="txt"><b>${esc(personName(b.personId))}</b><span class="sep"> · </span><span class="room">${esc(b.room)}</span>${b.slot === CUSTOM_SLOT ? `<span class="sep"> · </span><span class="time">${esc(bookingLabel(b))}</span>` : ""}</span>
             ${canDelete ? `<button class="icon-btn" data-delete="${esc(b.id)}" aria-label="Slett booking">✕</button>` : ""}</div>`;
         }).join("")}
       </div>`;
@@ -258,7 +285,8 @@ function setupForm() {
   dateInput.value = toISODate(addDays(today, 1));
 
   $("booking-form").addEventListener("change", (e) => {
-    if (e.target === dateInput || e.target.name === "slot") formTouched = true;
+    if (e.target === dateInput || e.target.name === "slot" || e.target.type === "time") formTouched = true;
+    if (e.target.name === "slot") setFormSlot(e.target.value);
     renderFormHint();
   });
   $("form-hint").addEventListener("click", (e) => {
@@ -266,7 +294,7 @@ function setupForm() {
     if (!btn) return;
     const [date, slot] = btn.dataset.suggest.split("|");
     dateInput.value = date;
-    document.querySelector(`input[name="slot"][value="${slot}"]`).checked = true;
+    setFormSlot(slot);
     formTouched = true;
     renderFormHint();
   });
@@ -276,7 +304,7 @@ function setupForm() {
     const booking = {
       personId: currentUserId,
       date: dateInput.value,
-      slot: new FormData(e.target).get("slot"),
+      ...formTime(),
       room: $("f-room").value.trim().replace(/\s+/g, " "),
     };
     const err = validateBooking(booking, state.bookings, new Date(), state.blocked);
@@ -286,7 +314,7 @@ function setupForm() {
       await store.addBooking(booking);
       $("f-room").value = "";
       formTouched = false;
-      toast(`Booket ${slotById(booking.slot).label} ${dayFmt.format(parseISODate(booking.date))} – ${booking.room}`);
+      toast(`Booket ${bookingLabel(booking)} ${dayFmt.format(parseISODate(booking.date))} – ${booking.room}`);
     } catch (ex) {
       $("form-error").textContent = ex.message;
     }
@@ -297,7 +325,7 @@ function setupForm() {
     const slot = e.target.closest(".slot.open");
     if (!slot) return;
     dateInput.value = slot.dataset.date;
-    document.querySelector(`input[name="slot"][value="${slot.dataset.slot}"]`).checked = true;
+    setFormSlot(slot.dataset.slot);
     formTouched = true;
     renderFormHint();
     $("form-error").textContent = currentUserId ? "" : "Velg hvem du er før du booker.";
@@ -377,7 +405,7 @@ function setupBlocked() {
     const dates = dateRange(from.value, to.value || from.value);
     const reason = $("b-reason").value.trim().replace(/\s+/g, " ");
     const slots = BLOCK_PARTS[new FormData(e.target).get("part")] || BLOCK_PARTS.day;
-    const taken = state.bookings.filter((b) => dates.includes(b.date) && slots.includes(b.slot)).length;
+    const taken = state.bookings.filter((b) => dates.includes(b.date) && overlapsSlots(b, slots)).length;
     if (taken && !confirm(`Det finnes ${taken} booking${taken > 1 ? "er" : ""} i perioden. De blir liggende. Sperre likevel?`)) return;
     $("blocked-error").textContent = "";
     try {

@@ -32,18 +32,54 @@ export function addDays(d, n) {
   return r;
 }
 
-export function slotEnd(booking) {
-  const slot = slotById(booking.slot);
-  const d = parseISODate(booking.date);
-  d.setHours(slot ? slot.end : 24, 0, 0, 0);
+// Egendefinert tid: { slot: "custom", start: "HH:MM", end: "HH:MM" }
+export const CUSTOM_SLOT = "custom";
+export const MAX_BOOKING_MINUTES = 4 * 60;
+
+// "HH:MM" -> minutter etter midnatt, eller null hvis ugyldig
+export function parseTime(t) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || "").trim());
+  if (!m) return null;
+  const min = Number(m[1]) * 60 + Number(m[2]);
+  return Number(m[2]) < 60 && min <= 24 * 60 ? min : null;
+}
+
+export function formatTime(min) {
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+}
+
+// Bookingens tidsrom i minutter etter midnatt: { start, end } (null hvis ugyldig)
+export function bookingRange(b) {
+  if (b.slot === CUSTOM_SLOT) {
+    const start = parseTime(b.start);
+    const end = parseTime(b.end);
+    return start != null && end != null && end > start ? { start, end } : null;
+  }
+  const slot = slotById(b.slot);
+  return slot ? { start: slot.start * 60, end: slot.end * 60 } : null;
+}
+
+export function bookingLabel(b) {
+  const r = bookingRange(b);
+  return r ? `${formatTime(r.start)}–${formatTime(r.end)}` : "";
+}
+
+const overlaps = (a, b) => a.start < b.end && b.start < a.end;
+
+function atMinutes(date, min) {
+  const d = parseISODate(date);
+  d.setMinutes(min);
   return d;
 }
 
+export function slotEnd(booking) {
+  const r = bookingRange(booking);
+  return atMinutes(booking.date, r ? r.end : 24 * 60);
+}
+
 export function slotStart(booking) {
-  const slot = slotById(booking.slot);
-  const d = parseISODate(booking.date);
-  d.setHours(slot ? slot.start : 0, 0, 0, 0);
-  return d;
+  const r = bookingRange(booking);
+  return atMinutes(booking.date, r ? r.start : 0);
 }
 
 // En booking er aktiv til økta er ferdig
@@ -62,31 +98,34 @@ export function normalizeRoom(room) {
 /**
  * Returnerer en feilmelding (string) hvis bookingen ikke er lov, ellers null.
  */
-export function validateBooking({ personId, date, slot, room }, bookings, now = new Date(), blocked = []) {
+export function validateBooking(candidate, bookings, now = new Date(), blocked = []) {
+  const { personId, date, slot, room } = candidate;
   if (!personId) return "Velg hvem du er før du booker.";
-  if (!slotById(slot)) return "Du kan bare booke 4-timers økter: 08:00–12:00, 12:00–16:00 eller 16:00–20:00.";
+  if (slot !== CUSTOM_SLOT && !slotById(slot)) return "Velg en økt eller en egen tid.";
+  const range = bookingRange(candidate);
+  if (!range) return "Velg et gyldig tidsrom – slutt må være etter start.";
+  if (range.end - range.start > MAX_BOOKING_MINUTES) return "En booking kan være maks 4 timer.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return "Velg en dato.";
   if (!normalizeRoom(room)) return "Skriv inn hvilket rom (sted) du har booket.";
 
-  const candidate = { date, slot };
   if (slotStart(candidate) <= now) return "Økta har allerede startet eller er passert.";
 
   const lastDay = addDays(now, MAX_DAYS_AHEAD);
   if (parseISODate(date) > lastDay) return `Du kan maks booke ${MAX_DAYS_AHEAD} dager frem i tid.`;
 
-  const block = blockedOn(date, blocked, slot);
+  const block = blockedFor(candidate, blocked);
   if (block) return `Denne ${isFullDayBlock(block) ? "dagen" : "økta"} er sperret${block.reason ? ` (${block.reason})` : ""} – den kan ikke bookes.`;
 
   if (activeBookingsFor(personId, bookings, now).length >= MAX_ACTIVE_BOOKINGS) {
     return `Du har allerede ${MAX_ACTIVE_BOOKINGS} aktive bookinger (maks).`;
   }
 
-  const sameSlot = bookings.filter((b) => b.date === date && b.slot === slot);
-  if (sameSlot.some((b) => normalizeRoom(b.room) === normalizeRoom(room))) {
-    return "Det rommet er allerede booket i denne økta.";
+  const sameTime = bookings.filter((b) => b.date === date && bookingRange(b) && overlaps(bookingRange(b), range));
+  if (sameTime.some((b) => normalizeRoom(b.room) === normalizeRoom(room))) {
+    return "Det rommet er allerede booket i dette tidsrommet.";
   }
-  if (sameSlot.some((b) => b.personId === personId)) {
-    return "Du har allerede en booking i denne økta.";
+  if (sameTime.some((b) => b.personId === personId)) {
+    return "Du har allerede en booking som overlapper dette tidsrommet.";
   }
   return null;
 }
@@ -116,6 +155,25 @@ export function blockPartLabel(x) {
 export function blockedOn(date, blocked = [], slot) {
   const x = blocked.find((b) => b.date === date);
   return x && (!slot || blockedSlotIds(x).includes(slot)) ? x : null;
+}
+
+// Tidsrommet en sperret økt dekker. Før 12 = hele morgenen, etter 12 = resten av dagen.
+function blockRange(slotId) {
+  const i = SLOTS.findIndex((s) => s.id === slotId);
+  return { start: i === 0 ? 0 : SLOTS[i].start * 60, end: i === SLOTS.length - 1 ? 24 * 60 : SLOTS[i].end * 60 };
+}
+
+// Øktene (av `slotIds`) som bookingen overlapper
+export function overlapsSlots(b, slotIds) {
+  const r = bookingRange(b);
+  return !!r && slotIds.some((id) => slotById(id) && overlaps(r, blockRange(id)));
+}
+
+// Sperringen som rammer bookingen (også egendefinert tid), ellers null
+export function blockedFor(b, blocked = []) {
+  const x = blockedOn(b.date, blocked);
+  if (!x) return null;
+  return isFullDayBlock(x) || overlapsSlots(b, blockedSlotIds(x)) ? x : null;
 }
 
 // Øktene som blir sperret når `slots` legges til en eventuell eksisterende sperring
@@ -158,10 +216,22 @@ export function bookableFrom(date, now = new Date()) {
 // Økter gruppa trenger dekket hver dag. 16–20 er valgfri og foreslås ikke.
 export const CORE_SLOTS = ["am", "pm"];
 
-// En dag er dekket når alle kjerneøktene (08–16) som ikke er sperret har minst én booking
+// Om bookingene denne dagen til sammen dekker hele økta (også med egendefinerte tider)
+export function isSlotCovered(date, slot, bookings) {
+  const s = slotById(slot);
+  let reach = s.start * 60;
+  const ranges = bookings.filter((b) => b.date === date).map(bookingRange).filter(Boolean).sort((a, b) => a.start - b.start);
+  for (const r of ranges) {
+    if (r.start > reach) break;
+    reach = Math.max(reach, r.end);
+  }
+  return reach >= s.end * 60;
+}
+
+// En dag er dekket når alle kjerneøktene (08–16) som ikke er sperret er dekket av bookinger
 export function isDayCovered(date, bookings, blocked = []) {
   const needed = CORE_SLOTS.filter((slot) => !blockedOn(date, blocked, slot));
-  return needed.length > 0 && needed.every((slot) => bookings.some((b) => b.date === date && b.slot === slot));
+  return needed.length > 0 && needed.every((slot) => isSlotCovered(date, slot, bookings));
 }
 
 /**
@@ -179,7 +249,7 @@ export function suggestedSlots(bookings, count, now = new Date(), blocked = []) 
       if (out.length >= count) break;
       if (slotStart({ date, slot }) <= now) continue;
       if (blockedOn(date, blocked, slot)) continue;
-      if (bookings.some((b) => b.date === date && b.slot === slot)) continue;
+      if (isSlotCovered(date, slot, bookings)) continue;
       out.push({ date, slot });
     }
   }

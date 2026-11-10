@@ -1,8 +1,8 @@
 // Lagring: Firestore når FIREBASE_CONFIG er satt, ellers localStorage.
 // Begge gir samme grensesnitt: subscribe(cb), addPerson(name), addBooking(b), deleteBooking(id), deletePerson(id),
 // blockDates(dates, reason, slots), unblockDates(dates).
-import { FIREBASE_CONFIG } from "./config.js?v=20";
-import { validateBooking, normalizeRoom, blockedOn, mergeBlockSlots } from "./rules.js?v=20";
+import { FIREBASE_CONFIG } from "./config.js?v=21";
+import { validateBooking, normalizeRoom, blockedOn, mergeBlockSlots, CUSTOM_SLOT } from "./rules.js?v=21";
 
 const EMPTY = { people: [], bookings: [], blocked: [] };
 
@@ -15,8 +15,9 @@ function blockEntry(date, reason, slots, blocked) {
 const FIREBASE_VERSION = "10.12.2";
 
 function bookingDocId(b) {
-  // Deterministisk id => samme rom i samme økt kan ikke lagres to ganger
-  return `${b.date}_${b.slot}_${normalizeRoom(b.room).replace(/[^a-z0-9æøå]+/g, "-")}`;
+  // Deterministisk id => samme rom i samme økt kan ikke lagres to ganger (overlapp sjekkes i validateBooking)
+  const when = b.slot === CUSTOM_SLOT ? `${b.start}-${b.end}`.replace(/:/g, "") : b.slot;
+  return `${b.date}_${when}_${normalizeRoom(b.room).replace(/[^a-z0-9æøå]+/g, "-")}`;
 }
 
 function localStore() {
