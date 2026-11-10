@@ -1,8 +1,8 @@
 // Lagring: Firestore når FIREBASE_CONFIG er satt, ellers localStorage.
 // Begge gir samme grensesnitt: subscribe(cb), addPerson(name), addBooking(b), deleteBooking(id), deletePerson(id),
 // blockDates(dates, reason, slots), unblockDates(dates).
-import { FIREBASE_CONFIG } from "./config.js?v=25";
-import { validateBooking, normalizeRoom, blockedOn, mergeBlockSlots, CUSTOM_SLOT } from "./rules.js?v=25";
+import { FIREBASE_CONFIG } from "./config.js?v=26";
+import { validateBooking, normalizeRoom, blockedOn, mergeBlockSlots, CUSTOM_SLOT } from "./rules.js?v=26";
 
 const EMPTY = { people: [], bookings: [], blocked: [] };
 

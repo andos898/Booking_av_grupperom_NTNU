@@ -1,7 +1,7 @@
-// Versjon (v=25) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
+// Versjon (v=26) i import-stiene tvinger nettleseren til å hente nye filer etter oppdatering.
 // Øk tallet i index.html, app.js og store.js ved hver endring.
-import { createStore } from "./store.js?v=25";
-import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=25";
+import { createStore } from "./store.js?v=26";
+import { ROOM_SUGGESTIONS, BOOKING_URL } from "./config.js?v=26";
 import {
   SLOTS, MAX_ACTIVE_BOOKINGS, MAX_DAYS_AHEAD,
   toISODate, parseISODate, addDays, slotStart, CUSTOM_SLOT, bookingLabel, bookingRange,
@@ -9,7 +9,7 @@ import {
   isActive, activeBookingsFor, validateBooking, bookingQueue,
   suggestedSlots, isDayCovered, CORE_SLOTS, blockedOn, dateRange, blockedPeriods, bookableFrom,
   BLOCK_PARTS, blockedSlotIds, isFullDayBlock, blockPartLabel,
-} from "./rules.js?v=25";
+} from "./rules.js?v=26";
 
 const USER_KEY = "grupperom-current-user";
 const $ = (id) => document.getElementById(id);
@@ -406,7 +406,8 @@ function setupForm() {
 
   $("calendar").addEventListener("click", (e) => {
     if (e.target.closest("[data-delete]")) return;
-    if (isNarrow()) {
+    // Mobil: trykk hvor som helst på dagen. PC: klikk på en booking viser dagsoversikten
+    if (isNarrow() || e.target.closest(".chip")) {
       const day = e.target.closest(".day[data-day]");
       if (day) openDayDialog(day.dataset.day);
       return;
